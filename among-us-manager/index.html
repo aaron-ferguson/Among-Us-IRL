@@ -1,0 +1,807 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Among Us - In-Person Game Manager</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: #fff;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            color: #ff3838;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            color: #a0a0a0;
+            font-size: 1.1rem;
+        }
+
+        .card {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+        }
+
+        .card h2 {
+            margin-bottom: 20px;
+            color: #5eb3f6;
+            font-size: 1.5rem;
+        }
+
+        .input-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #ddd;
+            font-weight: 500;
+        }
+
+        input[type="text"],
+        input[type="number"],
+        textarea,
+        select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.05);
+            color: #fff;
+            font-size: 1rem;
+            transition: all 0.3s;
+        }
+
+        input[type="text"]:focus,
+        input[type="number"]:focus,
+        textarea:focus,
+        select:focus {
+            outline: none;
+            border-color: #5eb3f6;
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        select option {
+            background: #16213e;
+            color: #fff;
+        }
+
+        button {
+            padding: 12px 30px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #5eb3f6 0%, #4a9ddb 100%);
+            color: #fff;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(94, 179, 246, 0.4);
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #ff3838 0%, #d32f2f 100%);
+            color: #fff;
+        }
+
+        .btn-danger:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(255, 56, 56, 0.4);
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #4caf50 0%, #388e3c 100%);
+            color: #fff;
+        }
+
+        .btn-success:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(76, 175, 80, 0.4);
+        }
+
+        .btn-block {
+            width: 100%;
+            margin-top: 10px;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .game-stats {
+            display: flex;
+            justify-content: space-around;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .stat-box {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 15px 25px;
+            border-radius: 10px;
+            text-align: center;
+            flex: 1;
+            min-width: 150px;
+        }
+
+        .stat-number {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #5eb3f6;
+        }
+
+        .stat-label {
+            color: #a0a0a0;
+            font-size: 0.9rem;
+            margin-top: 5px;
+        }
+
+        .player-badge {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 12px 20px;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            font-size: 1.1rem;
+            border: 2px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .player-role {
+            display: inline-block;
+            padding: 8px 20px;
+            border-radius: 20px;
+            font-size: 1rem;
+            font-weight: 600;
+            margin: 10px 0;
+        }
+
+        .role-imposter {
+            background: #ff3838;
+            color: #fff;
+        }
+
+        .role-crewmate {
+            background: #5eb3f6;
+            color: #fff;
+        }
+
+        .task-list {
+            list-style: none;
+            margin-top: 15px;
+        }
+
+        .task-item {
+            padding: 10px;
+            margin-bottom: 8px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 5px;
+            font-size: 1rem;
+            display: flex;
+            align-items: center;
+        }
+
+        .task-item input[type="checkbox"] {
+            margin-right: 12px;
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+        }
+
+        .emergency-button {
+            font-size: 1.5rem;
+            padding: 20px;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                transform: scale(1);
+            }
+            50% {
+                transform: scale(1.05);
+            }
+        }
+
+        .meeting-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 0, 0, 0.95);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            animation: flashRed 0.5s infinite;
+        }
+
+        @keyframes flashRed {
+            0%, 100% {
+                background: rgba(255, 0, 0, 0.95);
+            }
+            50% {
+                background: rgba(200, 0, 0, 0.95);
+            }
+        }
+
+        .meeting-content {
+            text-align: center;
+        }
+
+        .meeting-content h2 {
+            font-size: 4rem;
+            color: #fff;
+            margin-bottom: 20px;
+            animation: shake 0.5s infinite;
+        }
+
+        @keyframes shake {
+            0%, 100% {
+                transform: translateX(0);
+            }
+            25% {
+                transform: translateX(-10px);
+            }
+            75% {
+                transform: translateX(10px);
+            }
+        }
+
+        .view-switcher {
+            background: rgba(94, 179, 246, 0.2);
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            border: 2px solid rgba(94, 179, 246, 0.3);
+        }
+
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 2rem;
+            }
+
+            .meeting-content h2 {
+                font-size: 2.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🚀 Among Us Game Manager</h1>
+            <p class="subtitle">Manage your in-person Among Us game</p>
+        </header>
+
+        <!-- Stage 1: Game Setup (Host Only) -->
+        <div id="setup-phase">
+            <div class="card">
+                <h2>Stage 1: Game Setup</h2>
+                <p style="color: #a0a0a0; margin-bottom: 25px;">Configure your game settings</p>
+
+                <div class="input-group">
+                    <label for="player-count">Number of Players:</label>
+                    <input type="number" id="player-count" min="3" max="15" value="5">
+                </div>
+
+                <div class="input-group">
+                    <label for="imposter-count">Number of Imposters:</label>
+                    <input type="number" id="imposter-count" min="1" max="3" value="1">
+                </div>
+
+                <div class="input-group">
+                    <label for="tasks-per-player">Tasks per Crewmate:</label>
+                    <input type="number" id="tasks-per-player" min="1" max="10" value="3">
+                </div>
+
+                <button class="btn-primary btn-block" onclick="createGame()">Create Game & Enter Waiting Room</button>
+            </div>
+        </div>
+
+        <!-- Stage 2: Waiting Room -->
+        <div id="waiting-room" class="hidden">
+            <div class="card">
+                <h2>Stage 2: Waiting Room</h2>
+
+                <!-- Room Code Display -->
+                <div style="background: rgba(94, 179, 246, 0.2); border: 3px solid rgba(94, 179, 246, 0.5); border-radius: 15px; padding: 25px; margin-bottom: 25px; text-align: center;">
+                    <p style="color: #a0a0a0; margin-bottom: 10px; font-size: 0.9rem;">Share this code with your friends:</p>
+                    <div style="display: flex; align-items: center; justify-content: center; gap: 15px;">
+                        <div id="room-code" style="font-size: 3rem; font-weight: 700; letter-spacing: 8px; color: #5eb3f6;">ABCD</div>
+                        <button onclick="copyRoomCode()" class="btn-primary" style="padding: 15px 25px;">
+                            📋 Copy
+                        </button>
+                    </div>
+                    <p id="copy-feedback" style="color: #4caf50; margin-top: 10px; font-weight: 600; opacity: 0; transition: opacity 0.3s;">Copied to clipboard!</p>
+                </div>
+
+                <div class="game-stats">
+                    <div class="stat-box">
+                        <div class="stat-number"><span id="joined-count">0</span>/<span id="total-slots">0</span></div>
+                        <div class="stat-label">Players Joined</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-number" id="imposter-count-display">0</div>
+                        <div class="stat-label">Imposters</div>
+                    </div>
+                </div>
+
+                <div class="card" style="background: rgba(255, 255, 255, 0.05);">
+                    <h3 style="margin-bottom: 15px; color: #5eb3f6;">Join the Game:</h3>
+                    <p style="color: #a0a0a0; margin-bottom: 15px; font-size: 0.9rem;">Enter your name to join the lobby</p>
+                    <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+                        <input type="text" id="player-name-input" placeholder="Your name" style="flex: 1;">
+                        <button class="btn-primary" onclick="joinGame()">Join</button>
+                    </div>
+
+                    <h3 style="margin: 20px 0 15px 0; color: #5eb3f6;">Players in Lobby:</h3>
+                    <div id="lobby-players"></div>
+                </div>
+
+                <button class="btn-success btn-block" onclick="startGame()" id="start-game-btn" disabled>
+                    Start Game (Need at least 3 players)
+                </button>
+            </div>
+        </div>
+
+        <!-- Stage 3: Game Play -->
+        <div id="game-phase" class="hidden">
+            <!-- View Switcher -->
+            <div class="view-switcher">
+                <label for="player-select" style="display: block; margin-bottom: 10px;">
+                    👤 Viewing as:
+                </label>
+                <select id="player-select" onchange="switchPlayerView()">
+                    <option value="host">Host View (All Players)</option>
+                </select>
+            </div>
+
+            <!-- Host View: All Players -->
+            <div id="host-view">
+                <div class="card">
+                    <button class="btn-danger btn-block emergency-button" onclick="callEmergencyMeeting()">
+                        🚨 EMERGENCY MEETING 🚨
+                    </button>
+                </div>
+
+                <div class="card">
+                    <h2>All Players (Host View)</h2>
+                    <div id="all-players-list"></div>
+                </div>
+            </div>
+
+            <!-- Individual Player View -->
+            <div id="player-view" class="hidden">
+                <div class="card">
+                    <button class="btn-danger btn-block emergency-button" onclick="callEmergencyMeeting()">
+                        🚨 EMERGENCY MEETING 🚨
+                    </button>
+                </div>
+
+                <div class="card">
+                    <div style="text-align: center; margin-bottom: 30px;">
+                        <h2 id="current-player-name" style="font-size: 2rem; margin-bottom: 15px;"></h2>
+                        <span id="current-player-role" class="player-role" style="font-size: 1.2rem; padding: 10px 25px;"></span>
+                    </div>
+
+                    <div id="current-player-tasks"></div>
+                </div>
+            </div>
+
+            <div class="card">
+                <button class="btn-success btn-block" onclick="endGame()">End Game</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Stage 4: Emergency Meeting Overlay -->
+    <div id="meeting-overlay" class="meeting-overlay hidden">
+        <div class="meeting-content">
+            <h2>🚨 EMERGENCY MEETING 🚨</h2>
+            <p style="font-size: 1.5rem; margin-bottom: 30px;">RETURN TO MEETING POINT NOW!</p>
+            <button class="btn-primary" style="font-size: 1.2rem; padding: 15px 40px;" onclick="dismissMeeting()">
+                Dismiss Alert
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // Available tasks for crewmates
+        const availableTasks = [
+            "Empty Garbage",
+            "Fix Wiring",
+            "Download Data",
+            "Upload Data",
+            "Swipe Card",
+            "Start Reactor",
+            "Align Engine Output",
+            "Calibrate Distributor",
+            "Chart Course",
+            "Clean O2 Filter",
+            "Clear Asteroids",
+            "Fuel Engines",
+            "Inspect Sample",
+            "Prime Shields",
+            "Stabilize Steering",
+            "Submit Scan",
+            "Unlock Manifolds",
+            "Divert Power",
+            "Replace Water Jug",
+            "Fix Weather Node"
+        ];
+
+        let gameState = {
+            stage: 'setup', // setup, waiting, playing, meeting
+            settings: {
+                playerCount: 5,
+                imposterCount: 1,
+                tasksPerPlayer: 3
+            },
+            roomCode: '',
+            players: [],
+            currentView: 'host'
+        };
+
+        // Generate random room code
+        function generateRoomCode() {
+            const characters = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // Exclude similar looking chars
+            let code = '';
+            for (let i = 0; i < 4; i++) {
+                code += characters.charAt(Math.floor(Math.random() * characters.length));
+            }
+            return code;
+        }
+
+        // Copy room code to clipboard
+        function copyRoomCode() {
+            const roomCode = gameState.roomCode;
+            navigator.clipboard.writeText(roomCode).then(() => {
+                // Show feedback
+                const feedback = document.getElementById('copy-feedback');
+                feedback.style.opacity = '1';
+                setTimeout(() => {
+                    feedback.style.opacity = '0';
+                }, 2000);
+            }).catch(err => {
+                alert('Failed to copy: ' + err);
+            });
+        }
+
+        // Stage 1: Create Game
+        function createGame() {
+            gameState.settings.playerCount = parseInt(document.getElementById('player-count').value);
+            gameState.settings.imposterCount = parseInt(document.getElementById('imposter-count').value);
+            gameState.settings.tasksPerPlayer = parseInt(document.getElementById('tasks-per-player').value);
+
+            if (gameState.settings.imposterCount >= gameState.settings.playerCount) {
+                alert('Number of imposters must be less than total players!');
+                return;
+            }
+
+            // Generate and display room code
+            gameState.roomCode = generateRoomCode();
+            document.getElementById('room-code').textContent = gameState.roomCode;
+
+            gameState.stage = 'waiting';
+            document.getElementById('setup-phase').classList.add('hidden');
+            document.getElementById('waiting-room').classList.remove('hidden');
+
+            document.getElementById('total-slots').textContent = gameState.settings.playerCount;
+            document.getElementById('joined-count').textContent = '0';
+            document.getElementById('imposter-count-display').textContent = gameState.settings.imposterCount;
+        }
+
+        // Stage 2: Join Game
+        function joinGame() {
+            const nameInput = document.getElementById('player-name-input');
+            const name = nameInput.value.trim();
+
+            if (!name) {
+                alert('Please enter a player name!');
+                return;
+            }
+
+            if (gameState.players.length >= gameState.settings.playerCount) {
+                alert('Lobby is full!');
+                return;
+            }
+
+            if (gameState.players.some(p => p.name === name)) {
+                alert('Player name already exists!');
+                return;
+            }
+
+            gameState.players.push({ name: name });
+            nameInput.value = '';
+            updateLobby();
+        }
+
+        function updateLobby() {
+            const lobbyDiv = document.getElementById('lobby-players');
+            lobbyDiv.innerHTML = '';
+
+            gameState.players.forEach((player, index) => {
+                const badge = document.createElement('div');
+                badge.className = 'player-badge';
+                badge.innerHTML = `
+                    ${index + 1}. ${player.name}
+                    <button onclick="removePlayer(${index})" style="float: right; background: #ff3838; color: white; border: none; padding: 4px 12px; border-radius: 4px; cursor: pointer;">Remove</button>
+                `;
+                lobbyDiv.appendChild(badge);
+            });
+
+            document.getElementById('joined-count').textContent = gameState.players.length;
+
+            const startBtn = document.getElementById('start-game-btn');
+            if (gameState.players.length >= 3) {
+                startBtn.disabled = false;
+                startBtn.textContent = 'Start Game';
+            } else {
+                startBtn.disabled = true;
+                startBtn.textContent = `Start Game (Need at least 3 players)`;
+            }
+        }
+
+        function removePlayer(index) {
+            gameState.players.splice(index, 1);
+            updateLobby();
+        }
+
+        // Stage 3: Start Game and Assign Roles
+        function startGame() {
+            if (gameState.players.length < 3) {
+                alert('Need at least 3 players!');
+                return;
+            }
+
+            // Randomly assign imposters
+            const shuffled = [...gameState.players].sort(() => Math.random() - 0.5);
+            const imposterIndices = shuffled.slice(0, gameState.settings.imposterCount).map(p => p.name);
+
+            // Assign roles and tasks
+            gameState.players = gameState.players.map(player => ({
+                name: player.name,
+                role: imposterIndices.includes(player.name) ? 'imposter' : 'crewmate',
+                tasks: imposterIndices.includes(player.name) ? [] : generateTasks(gameState.settings.tasksPerPlayer),
+                completedTasks: []
+            }));
+
+            gameState.stage = 'playing';
+
+            // Setup player selector
+            const select = document.getElementById('player-select');
+            select.innerHTML = '<option value="host">Host View (All Players)</option>';
+            gameState.players.forEach(player => {
+                const option = document.createElement('option');
+                option.value = player.name;
+                option.textContent = player.name;
+                select.appendChild(option);
+            });
+
+            document.getElementById('waiting-room').classList.add('hidden');
+            document.getElementById('game-phase').classList.remove('hidden');
+
+            renderHostView();
+        }
+
+        function generateTasks(count) {
+            const shuffled = [...availableTasks].sort(() => Math.random() - 0.5);
+            return shuffled.slice(0, count);
+        }
+
+        function renderHostView() {
+            const container = document.getElementById('all-players-list');
+            container.innerHTML = '';
+
+            gameState.players.forEach((player, playerIndex) => {
+                const card = document.createElement('div');
+                card.style.cssText = 'background: rgba(255,255,255,0.05); padding: 20px; border-radius: 10px; margin-bottom: 15px;';
+
+                let tasksHtml = '';
+                if (player.role === 'crewmate') {
+                    tasksHtml = `
+                        <ul class="task-list">
+                            ${player.tasks.map((task, taskIndex) => `
+                                <li class="task-item">
+                                    <input type="checkbox"
+                                           id="task-${playerIndex}-${taskIndex}"
+                                           onchange="toggleTask(${playerIndex}, ${taskIndex})">
+                                    <label for="task-${playerIndex}-${taskIndex}">${task}</label>
+                                </li>
+                            `).join('')}
+                        </ul>
+                    `;
+                } else {
+                    tasksHtml = '<p style="color: #ff3838; font-style: italic; margin-top: 15px;">Sabotage and eliminate crewmates!</p>';
+                }
+
+                card.innerHTML = `
+                    <h3 style="font-size: 1.5rem; margin-bottom: 10px;">${player.name}</h3>
+                    <span class="player-role role-${player.role}">
+                        ${player.role === 'imposter' ? '☠️ IMPOSTER' : '👤 CREWMATE'}
+                    </span>
+                    ${tasksHtml}
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function switchPlayerView() {
+            const selectedPlayer = document.getElementById('player-select').value;
+
+            if (selectedPlayer === 'host') {
+                document.getElementById('host-view').classList.remove('hidden');
+                document.getElementById('player-view').classList.add('hidden');
+                renderHostView();
+            } else {
+                document.getElementById('host-view').classList.add('hidden');
+                document.getElementById('player-view').classList.remove('hidden');
+                renderPlayerView(selectedPlayer);
+            }
+        }
+
+        function renderPlayerView(playerName) {
+            const player = gameState.players.find(p => p.name === playerName);
+            if (!player) return;
+
+            document.getElementById('current-player-name').textContent = player.name;
+
+            const roleSpan = document.getElementById('current-player-role');
+            roleSpan.className = `player-role role-${player.role}`;
+            roleSpan.textContent = player.role === 'imposter' ? '☠️ IMPOSTER' : '👤 CREWMATE';
+
+            const tasksContainer = document.getElementById('current-player-tasks');
+
+            if (player.role === 'crewmate') {
+                const playerIndex = gameState.players.findIndex(p => p.name === playerName);
+                tasksContainer.innerHTML = `
+                    <h3 style="margin-bottom: 15px; color: #5eb3f6;">Your Tasks:</h3>
+                    <ul class="task-list">
+                        ${player.tasks.map((task, taskIndex) => `
+                            <li class="task-item">
+                                <input type="checkbox"
+                                       id="task-view-${playerIndex}-${taskIndex}"
+                                       onchange="toggleTask(${playerIndex}, ${taskIndex})">
+                                <label for="task-view-${playerIndex}-${taskIndex}">${task}</label>
+                            </li>
+                        `).join('')}
+                    </ul>
+                `;
+            } else {
+                tasksContainer.innerHTML = `
+                    <div style="text-align: center; padding: 30px; background: rgba(255, 56, 56, 0.1); border-radius: 10px;">
+                        <h3 style="color: #ff3838; font-size: 1.5rem; margin-bottom: 15px;">Your Mission</h3>
+                        <p style="font-size: 1.1rem;">Sabotage and eliminate crewmates without being discovered!</p>
+                    </div>
+                `;
+            }
+        }
+
+        function toggleTask(playerIndex, taskIndex) {
+            const task = gameState.players[playerIndex].tasks[taskIndex];
+            const checkbox1 = document.getElementById(`task-${playerIndex}-${taskIndex}`);
+            const checkbox2 = document.getElementById(`task-view-${playerIndex}-${taskIndex}`);
+
+            const isChecked = checkbox1?.checked || checkbox2?.checked || false;
+
+            if (isChecked) {
+                if (!gameState.players[playerIndex].completedTasks.includes(task)) {
+                    gameState.players[playerIndex].completedTasks.push(task);
+                }
+            } else {
+                const completedIndex = gameState.players[playerIndex].completedTasks.indexOf(task);
+                if (completedIndex > -1) {
+                    gameState.players[playerIndex].completedTasks.splice(completedIndex, 1);
+                }
+            }
+
+            // Sync both checkboxes
+            if (checkbox1) checkbox1.checked = isChecked;
+            if (checkbox2) checkbox2.checked = isChecked;
+        }
+
+        // Stage 4: Emergency Meeting
+        function callEmergencyMeeting() {
+            const overlay = document.getElementById('meeting-overlay');
+            overlay.classList.remove('hidden');
+
+            if ('vibrate' in navigator) {
+                navigator.vibrate([200, 100, 200, 100, 200, 100, 200]);
+            }
+
+            playAlarmSound();
+        }
+
+        function playAlarmSound() {
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            let count = 0;
+            const interval = setInterval(() => {
+                if (count >= 10 || document.getElementById('meeting-overlay').classList.contains('hidden')) {
+                    clearInterval(interval);
+                    return;
+                }
+
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+
+                oscillator.frequency.value = 800;
+                oscillator.type = 'square';
+
+                gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+
+                oscillator.start(audioContext.currentTime);
+                oscillator.stop(audioContext.currentTime + 0.3);
+
+                count++;
+            }, 400);
+        }
+
+        function dismissMeeting() {
+            document.getElementById('meeting-overlay').classList.add('hidden');
+        }
+
+        function endGame() {
+            if (confirm('Are you sure you want to end the game and return to setup?')) {
+                gameState = {
+                    stage: 'setup',
+                    settings: {
+                        playerCount: 5,
+                        imposterCount: 1,
+                        tasksPerPlayer: 3
+                    },
+                    roomCode: '',
+                    players: [],
+                    currentView: 'host'
+                };
+
+                document.getElementById('game-phase').classList.add('hidden');
+                document.getElementById('setup-phase').classList.remove('hidden');
+            }
+        }
+    </script>
+</body>
+</html>
