@@ -563,7 +563,7 @@
 <body>
     <div class="container">
         <header>
-            <h1>🚀 Among Us IRL</h1>
+            <h1>Among Us IRL</h1>
             <p class="subtitle">In-Person Game Manager</p>
         </header>
 
@@ -973,8 +973,8 @@
         // ==================== SUPABASE CONFIGURATION ====================
         // TODO: Replace these with your Supabase project credentials
         // Get these from: https://supabase.com/dashboard/project/YOUR_PROJECT/settings/api
-        const SUPABASE_URL = 'YOUR_SUPABASE_URL';  // e.g., 'https://xxxxx.supabase.co'
-        const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';  // Your anon/public key
+        const SUPABASE_URL = 'https://slmmwedexgtpxoyxfkey.supabase.co/';  // e.g., 'https://xxxxx.supabase.co'
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNsbW13ZWRleGd0cHhveXhma2V5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjI4OTA2NDksImV4cCI6MjA3ODQ2NjY0OX0.TDy1r0V3Sex-Zcldh29q_yvGeYi04o_KJ8haDQdOXUg';  // Your anon/public key
 
         // Initialize Supabase client
         let supabaseClient = null;
@@ -1043,6 +1043,7 @@
         let gameState = {
             stage: 'setup',
             roomCode: '',
+            hostName: null,
             settings: {
                 minPlayers: 4,
                 maxPlayers: 10,
@@ -1067,6 +1068,12 @@
 
         // Track the player name for this device
         let myPlayerName = null;
+        let isGameCreator = false; // True if this device created the game
+
+        // Check if this device is the host
+        function isHost() {
+            return gameState.hostName && myPlayerName === gameState.hostName;
+        }
 
         // ==================== SUPABASE HELPER FUNCTIONS ====================
 
@@ -1127,6 +1134,7 @@
 
                 // Load game state
                 gameState.roomCode = gameData.room_code;
+                gameState.hostName = gameData.host_name;
                 gameState.stage = gameData.stage;
                 gameState.settings = gameData.settings;
                 gameState.meetingsUsed = gameData.meetings_used;
@@ -1268,6 +1276,7 @@
                         const newData = payload.new;
 
                         // Update local state from DB
+                        gameState.hostName = newData.host_name;
                         gameState.stage = newData.stage;
                         gameState.settings = newData.settings;
                         gameState.meetingsUsed = newData.meetings_used;
@@ -1276,6 +1285,9 @@
 
                         // Update UI based on stage
                         handleStageChange();
+
+                        // Update host controls visibility
+                        updateHostControls();
                     }
                 )
                 .subscribe();
@@ -1752,6 +1764,9 @@
             // Update join section to show correct view
             updateJoinSection();
 
+            // Mark this device as the game creator (will become host when they join)
+            isGameCreator = true;
+
             // Create game in database
             createGameInDB();
         }
@@ -1767,13 +1782,18 @@
         }
 
         function editSettings() {
+            if (!isHost()) {
+                alert('Only the host can edit settings!');
+                return;
+            }
+
             if (confirm('Are you sure you want to edit settings? This will return you to the setup screen.')) {
                 document.getElementById('waiting-room').classList.add('hidden');
                 document.getElementById('setup-phase').classList.remove('hidden');
             }
         }
 
-        function joinGame() {
+        async function joinGame() {
             const nameInput = document.getElementById('player-name-input');
             const name = nameInput.value.trim();
 
@@ -1787,9 +1807,19 @@
                 return;
             }
 
-            // Case-insensitive duplicate check
-            if (gameState.players.some(p => p.name.toLowerCase() === name.toLowerCase())) {
-                alert('This name is already taken!');
+            // Check if player already exists (reconnection case)
+            const existingPlayer = gameState.players.find(p => p.name.toLowerCase() === name.toLowerCase());
+            if (existingPlayer) {
+                // Reconnect as this player
+                myPlayerName = existingPlayer.name;
+                nameInput.value = '';
+                updateJoinSection();
+                console.log('Reconnected as existing player:', name);
+
+                // Update last_seen in database
+                if (supabaseClient && currentGameId) {
+                    await updatePlayerInDB(existingPlayer.name, { last_seen: new Date().toISOString() });
+                }
                 return;
             }
 
@@ -1805,12 +1835,26 @@
             // Track this device's player
             myPlayerName = name;
 
+            // If this device created the game and there's no host yet, set this player as host
+            if (isGameCreator && !gameState.hostName) {
+                gameState.hostName = name;
+                console.log('Setting host:', name);
+
+                // Update host in database
+                if (supabaseClient && currentGameId) {
+                    await supabaseClient
+                        .from('games')
+                        .update({ host_name: name })
+                        .eq('id', currentGameId);
+                }
+            }
+
             nameInput.value = '';
             updateJoinSection();
             updateLobby();
 
             // Add player to database
-            addPlayerToDB(name);
+            await addPlayerToDB(name);
         }
 
         function updateJoinSection() {
@@ -1824,6 +1868,9 @@
                 document.getElementById('join-form').classList.remove('hidden');
                 document.getElementById('already-joined').classList.add('hidden');
             }
+
+            // Update host controls visibility
+            updateHostControls();
         }
 
         function updateLobby() {
@@ -1835,10 +1882,15 @@
             gameState.players.forEach((player, index) => {
                 const badge = document.createElement('div');
                 badge.className = `player-badge ${player.ready ? 'player-ready' : ''}`;
+
+                const isPlayerHost = player.name === gameState.hostName;
+                const showKickButton = isHost() && player.name !== myPlayerName;
+
                 badge.innerHTML = `
-                    <span>${player.name}</span>
+                    <span>${player.name} ${isPlayerHost ? '👑' : ''}</span>
                     <div>
                         ${player.ready ? '<span class="ready-indicator">Ready</span>' : ''}
+                        ${showKickButton ? `<button onclick="kickPlayer('${player.name}')" style="background: #ff3838; color: white; border: none; padding: 4px 12px; border-radius: 4px; cursor: pointer; margin-left: 10px; font-size: 0.85rem;">Kick</button>` : ''}
                     </div>
                 `;
                 lobbyDiv.appendChild(badge);
@@ -1855,6 +1907,51 @@
             } else {
                 startBtn.disabled = true;
                 startBtn.textContent = `Start Game (Waiting for minimum players to be ready)`;
+            }
+
+            // Update host controls after updating lobby
+            updateHostControls();
+        }
+
+        function updateHostControls() {
+            // Show/hide Edit Settings button based on host status
+            const editSettingsBtn = document.getElementById('edit-settings-btn');
+            const startGameBtn = document.getElementById('start-game-btn');
+
+            if (editSettingsBtn) {
+                if (isHost()) {
+                    editSettingsBtn.style.display = '';
+                } else {
+                    editSettingsBtn.style.display = 'none';
+                }
+            }
+
+            // Only host can start the game
+            if (startGameBtn) {
+                if (!isHost()) {
+                    startGameBtn.disabled = true;
+                    startGameBtn.textContent = 'Only host can start the game';
+                }
+            }
+        }
+
+        async function kickPlayer(playerName) {
+            if (!isHost()) {
+                alert('Only the host can kick players!');
+                return;
+            }
+
+            if (confirm(`Are you sure you want to kick ${playerName}?`)) {
+                // Remove from local state
+                const playerIndex = gameState.players.findIndex(p => p.name === playerName);
+                if (playerIndex !== -1) {
+                    gameState.players.splice(playerIndex, 1);
+                }
+
+                // Remove from database
+                await removePlayerFromDB(playerName);
+
+                updateLobby();
             }
         }
 
@@ -1918,6 +2015,12 @@
         }
 
         function startGame() {
+            // Only host can start the game
+            if (!isHost()) {
+                alert('Only the host can start the game!');
+                return;
+            }
+
             // Assign roles
             const shuffled = [...gameState.players].sort(() => Math.random() - 0.5);
             const imposterNames = shuffled.slice(0, gameState.settings.imposterCount).map(p => p.name);

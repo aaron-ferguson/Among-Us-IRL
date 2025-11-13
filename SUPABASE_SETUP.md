@@ -26,12 +26,14 @@ This guide will walk you through setting up Supabase for real-time multi-device 
 7. You should see "Success. No rows returned" - this is correct!
 
 This creates:
-- `games` table (stores game state)
+- `games` table (stores game state with host tracking)
 - `players` table (stores player information)
 - Indexes for performance
 - Row Level Security (RLS) policies
 - Realtime subscriptions
 - Auto-cleanup function
+
+**Note for Existing Users:** The schema file includes a migration that automatically adds the `host_name` column to the `games` table if it doesn't exist. Safe to run multiple times!
 
 ## Step 3: Get Your API Credentials
 

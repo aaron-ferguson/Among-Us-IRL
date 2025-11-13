@@ -8,6 +8,7 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE TABLE games (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     room_code TEXT UNIQUE NOT NULL,
+    host_name TEXT,
     stage TEXT NOT NULL DEFAULT 'waiting',
     settings JSONB NOT NULL DEFAULT '{}'::jsonb,
     meetings_used INTEGER DEFAULT 0,
@@ -101,3 +102,12 @@ ALTER PUBLICATION supabase_realtime ADD TABLE players;
 -- Grant permissions
 GRANT ALL ON games TO anon, authenticated;
 GRANT ALL ON players TO anon, authenticated;
+
+-- Migration: Add host_name column if it doesn't exist (for existing databases)
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                   WHERE table_name = 'games' AND column_name = 'host_name') THEN
+        ALTER TABLE games ADD COLUMN host_name TEXT;
+    END IF;
+END $$;
