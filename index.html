@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Among Us - In-Person Game Manager</title>
+    <!-- Supabase Client Library -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         * {
             margin: 0;
@@ -968,6 +970,24 @@
     </div>
 
     <script>
+        // ==================== SUPABASE CONFIGURATION ====================
+        // TODO: Replace these with your Supabase project credentials
+        // Get these from: https://supabase.com/dashboard/project/YOUR_PROJECT/settings/api
+        const SUPABASE_URL = 'YOUR_SUPABASE_URL';  // e.g., 'https://xxxxx.supabase.co'
+        const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';  // Your anon/public key
+
+        // Initialize Supabase client
+        let supabaseClient = null;
+        let gameChannel = null;
+        let playersChannel = null;
+        let currentGameId = null;
+
+        if (SUPABASE_URL !== 'YOUR_SUPABASE_URL' && SUPABASE_ANON_KEY !== 'YOUR_SUPABASE_ANON_KEY') {
+            const { createClient } = supabase;
+            supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        }
+        // =================================================================
+
         // Game data structure
         const ROOMS_AND_TASKS = {
             "Anywhere": [
@@ -1047,6 +1067,318 @@
 
         // Track the player name for this device
         let myPlayerName = null;
+
+        // ==================== SUPABASE HELPER FUNCTIONS ====================
+
+        async function createGameInDB() {
+            if (!supabaseClient) {
+                console.warn('Supabase not configured - running in offline mode');
+                return null;
+            }
+
+            try {
+                const { data, error } = await supabaseClient
+                    .from('games')
+                    .insert({
+                        room_code: gameState.roomCode,
+                        stage: gameState.stage,
+                        settings: gameState.settings,
+                        meetings_used: gameState.meetingsUsed,
+                        game_ended: gameState.gameEnded,
+                        winner: gameState.winner
+                    })
+                    .select()
+                    .single();
+
+                if (error) throw error;
+
+                currentGameId = data.id;
+                console.log('Game created in DB:', data.id);
+
+                // Subscribe to realtime updates
+                subscribeToGame();
+                subscribeToPlayers();
+
+                return data;
+            } catch (error) {
+                console.error('Error creating game:', error);
+                alert('Failed to create game in database. Playing in offline mode.');
+                return null;
+            }
+        }
+
+        async function joinGameFromDB(roomCode) {
+            if (!supabaseClient) {
+                console.warn('Supabase not configured');
+                return null;
+            }
+
+            try {
+                // Fetch game by room code
+                const { data: gameData, error: gameError } = await supabaseClient
+                    .from('games')
+                    .select('*')
+                    .eq('room_code', roomCode)
+                    .single();
+
+                if (gameError) throw gameError;
+
+                currentGameId = gameData.id;
+
+                // Load game state
+                gameState.roomCode = gameData.room_code;
+                gameState.stage = gameData.stage;
+                gameState.settings = gameData.settings;
+                gameState.meetingsUsed = gameData.meetings_used;
+                gameState.gameEnded = gameData.game_ended;
+                gameState.winner = gameData.winner;
+
+                // Fetch players
+                const { data: playersData, error: playersError } = await supabaseClient
+                    .from('players')
+                    .select('*')
+                    .eq('game_id', currentGameId);
+
+                if (playersError) throw playersError;
+
+                gameState.players = playersData.map(p => ({
+                    name: p.name,
+                    role: p.role,
+                    ready: p.ready,
+                    tasks: p.tasks || [],
+                    alive: p.alive,
+                    tasksCompleted: p.tasks_completed || 0,
+                    votedFor: p.voted_for
+                }));
+
+                // Subscribe to realtime updates
+                subscribeToGame();
+                subscribeToPlayers();
+
+                console.log('Joined game from DB:', gameData.id);
+                return gameData;
+            } catch (error) {
+                console.error('Error joining game:', error);
+                return null;
+            }
+        }
+
+        async function addPlayerToDB(playerName) {
+            if (!supabaseClient || !currentGameId) {
+                console.warn('Supabase not configured or no game ID');
+                return null;
+            }
+
+            try {
+                const { data, error } = await supabaseClient
+                    .from('players')
+                    .insert({
+                        game_id: currentGameId,
+                        name: playerName,
+                        ready: true,
+                        alive: true,
+                        tasks: [],
+                        tasks_completed: 0
+                    })
+                    .select()
+                    .single();
+
+                if (error) throw error;
+
+                console.log('Player added to DB:', playerName);
+                return data;
+            } catch (error) {
+                console.error('Error adding player:', error);
+                return null;
+            }
+        }
+
+        async function updateGameInDB() {
+            if (!supabaseClient || !currentGameId) return;
+
+            try {
+                const { error } = await supabaseClient
+                    .from('games')
+                    .update({
+                        stage: gameState.stage,
+                        settings: gameState.settings,
+                        meetings_used: gameState.meetingsUsed,
+                        game_ended: gameState.gameEnded,
+                        winner: gameState.winner
+                    })
+                    .eq('id', currentGameId);
+
+                if (error) throw error;
+            } catch (error) {
+                console.error('Error updating game:', error);
+            }
+        }
+
+        async function updatePlayerInDB(playerName, updates) {
+            if (!supabaseClient || !currentGameId) return;
+
+            try {
+                const { error } = await supabaseClient
+                    .from('players')
+                    .update(updates)
+                    .eq('game_id', currentGameId)
+                    .eq('name', playerName);
+
+                if (error) throw error;
+            } catch (error) {
+                console.error('Error updating player:', error);
+            }
+        }
+
+        async function removePlayerFromDB(playerName) {
+            if (!supabaseClient || !currentGameId) return;
+
+            try {
+                const { error } = await supabaseClient
+                    .from('players')
+                    .delete()
+                    .eq('game_id', currentGameId)
+                    .eq('name', playerName);
+
+                if (error) throw error;
+            } catch (error) {
+                console.error('Error removing player:', error);
+            }
+        }
+
+        function subscribeToGame() {
+            if (!supabaseClient || !currentGameId) return;
+
+            // Unsubscribe from previous channel if exists
+            if (gameChannel) {
+                supabaseClient.removeChannel(gameChannel);
+            }
+
+            gameChannel = supabaseClient
+                .channel(`game:${currentGameId}`)
+                .on('postgres_changes',
+                    {
+                        event: 'UPDATE',
+                        schema: 'public',
+                        table: 'games',
+                        filter: `id=eq.${currentGameId}`
+                    },
+                    (payload) => {
+                        console.log('Game updated:', payload);
+                        const newData = payload.new;
+
+                        // Update local state from DB
+                        gameState.stage = newData.stage;
+                        gameState.settings = newData.settings;
+                        gameState.meetingsUsed = newData.meetings_used;
+                        gameState.gameEnded = newData.game_ended;
+                        gameState.winner = newData.winner;
+
+                        // Update UI based on stage
+                        handleStageChange();
+                    }
+                )
+                .subscribe();
+
+            console.log('Subscribed to game updates');
+        }
+
+        function subscribeToPlayers() {
+            if (!supabaseClient || !currentGameId) return;
+
+            // Unsubscribe from previous channel if exists
+            if (playersChannel) {
+                supabaseClient.removeChannel(playersChannel);
+            }
+
+            playersChannel = supabaseClient
+                .channel(`players:${currentGameId}`)
+                .on('postgres_changes',
+                    {
+                        event: '*',
+                        schema: 'public',
+                        table: 'players',
+                        filter: `game_id=eq.${currentGameId}`
+                    },
+                    (payload) => {
+                        console.log('Players changed:', payload);
+                        handlePlayerChange(payload);
+                    }
+                )
+                .subscribe();
+
+            console.log('Subscribed to player updates');
+        }
+
+        function handlePlayerChange(payload) {
+            const { eventType, new: newData, old: oldData } = payload;
+
+            if (eventType === 'INSERT') {
+                // New player joined
+                const existingIndex = gameState.players.findIndex(p => p.name === newData.name);
+                if (existingIndex === -1) {
+                    gameState.players.push({
+                        name: newData.name,
+                        role: newData.role,
+                        ready: newData.ready,
+                        tasks: newData.tasks || [],
+                        alive: newData.alive,
+                        tasksCompleted: newData.tasks_completed || 0,
+                        votedFor: newData.voted_for
+                    });
+                    updateLobby();
+                }
+            } else if (eventType === 'UPDATE') {
+                // Player updated
+                const playerIndex = gameState.players.findIndex(p => p.name === newData.name);
+                if (playerIndex !== -1) {
+                    gameState.players[playerIndex] = {
+                        name: newData.name,
+                        role: newData.role,
+                        ready: newData.ready,
+                        tasks: newData.tasks || [],
+                        alive: newData.alive,
+                        tasksCompleted: newData.tasks_completed || 0,
+                        votedFor: newData.voted_for
+                    };
+                    updateLobby();
+                }
+            } else if (eventType === 'DELETE') {
+                // Player left
+                const playerIndex = gameState.players.findIndex(p => p.name === oldData.name);
+                if (playerIndex !== -1) {
+                    gameState.players.splice(playerIndex, 1);
+                    updateLobby();
+                }
+            }
+        }
+
+        function handleStageChange() {
+            // Show/hide appropriate UI sections based on stage
+            if (gameState.stage === 'waiting') {
+                document.getElementById('setup-phase').classList.add('hidden');
+                document.getElementById('waiting-room').classList.remove('hidden');
+                document.getElementById('game-phase').classList.add('hidden');
+                updateLobby();
+            } else if (gameState.stage === 'playing') {
+                document.getElementById('waiting-room').classList.add('hidden');
+                document.getElementById('game-phase').classList.remove('hidden');
+                displayGameplay();
+            }
+        }
+
+        function unsubscribeFromChannels() {
+            if (gameChannel) {
+                supabaseClient.removeChannel(gameChannel);
+                gameChannel = null;
+            }
+            if (playersChannel) {
+                supabaseClient.removeChannel(playersChannel);
+                playersChannel = null;
+            }
+        }
+
+        // =================================================================
 
         // Initialize rooms/tasks UI
         function initializeRoomsAndTasks() {
@@ -1354,8 +1686,13 @@
             return code;
         }
 
+        function getGameURL() {
+            const baseUrl = window.location.origin + window.location.pathname;
+            return `${baseUrl}?room=${gameState.roomCode}`;
+        }
+
         function copyGameURL() {
-            const url = window.location.href;
+            const url = getGameURL();
             navigator.clipboard.writeText(url).then(() => {
                 const feedback = document.getElementById('copy-feedback');
                 feedback.style.opacity = '1';
@@ -1364,7 +1701,7 @@
         }
 
         function generateQRCode() {
-            const url = window.location.href;
+            const url = getGameURL();
             const qrCodeImage = document.getElementById('qr-code-image');
             // Use QR Server API to generate QR code
             const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(url)}`;
@@ -1414,6 +1751,9 @@
 
             // Update join section to show correct view
             updateJoinSection();
+
+            // Create game in database
+            createGameInDB();
         }
 
         function showInstructions() {
@@ -1468,6 +1808,9 @@
             nameInput.value = '';
             updateJoinSection();
             updateLobby();
+
+            // Add player to database
+            addPlayerToDB(name);
         }
 
         function updateJoinSection() {
@@ -1542,10 +1885,18 @@
             }
 
             // Update the player's name
+            const oldName = player.name;
             player.name = trimmedName;
             myPlayerName = trimmedName;
             updateJoinSection();
             updateLobby();
+
+            // Update in database - need to delete old and insert new (since name is part of unique constraint)
+            if (supabaseClient && currentGameId) {
+                removePlayerFromDB(oldName).then(() => {
+                    addPlayerToDB(trimmedName);
+                });
+            }
         }
 
         function leaveGame() {
@@ -1553,12 +1904,16 @@
 
             if (confirm('Are you sure you want to leave the game?')) {
                 const playerIndex = gameState.players.findIndex(p => p.name === myPlayerName);
+                const playerName = myPlayerName;
                 if (playerIndex !== -1) {
                     gameState.players.splice(playerIndex, 1);
                 }
                 myPlayerName = null;
                 updateJoinSection();
                 updateLobby();
+
+                // Remove from database
+                removePlayerFromDB(playerName);
             }
         }
 
@@ -1589,6 +1944,21 @@
             document.getElementById('game-phase').classList.remove('hidden');
 
             displayGameplay();
+
+            // Update game state in database
+            updateGameInDB();
+
+            // Update all players with their roles/tasks in database
+            if (supabaseClient && currentGameId) {
+                gameState.players.forEach(player => {
+                    updatePlayerInDB(player.name, {
+                        role: player.role,
+                        tasks: player.tasks,
+                        alive: player.alive,
+                        tasks_completed: player.tasksCompleted
+                    });
+                });
+            }
         }
 
         function displayGameplay() {
@@ -1832,10 +2202,45 @@
         }
 
         // Initialize on load
-        window.onload = () => {
+        window.onload = async () => {
             initializeRoomsAndTasks();
             updateMeetingRoomDropdown();
             setupUniqueRadioListeners();
+
+            // Check if joining existing game via URL parameter
+            const urlParams = new URLSearchParams(window.location.search);
+            const roomCode = urlParams.get('room');
+
+            if (roomCode && supabaseClient) {
+                // Try to join existing game
+                const gameData = await joinGameFromDB(roomCode);
+
+                if (gameData) {
+                    // Successfully joined game
+                    document.getElementById('room-code').textContent = roomCode;
+
+                    // Update displays
+                    document.getElementById('min-players-display').textContent = gameState.settings.minPlayers;
+                    document.getElementById('max-players-display').textContent = gameState.settings.maxPlayers;
+                    document.getElementById('imposter-count-display').textContent = gameState.settings.imposterCount;
+
+                    // Show appropriate stage
+                    if (gameState.stage === 'waiting') {
+                        document.getElementById('setup-phase').classList.add('hidden');
+                        document.getElementById('waiting-room').classList.remove('hidden');
+                        generateQRCode();
+                        updateJoinSection();
+                        updateLobby();
+                    } else if (gameState.stage === 'playing') {
+                        document.getElementById('setup-phase').classList.add('hidden');
+                        document.getElementById('waiting-room').classList.add('hidden');
+                        document.getElementById('game-phase').classList.remove('hidden');
+                        // Don't call displayGameplay() yet - player needs to join first
+                    }
+                } else {
+                    alert(`Game with room code "${roomCode}" not found. Starting new game.`);
+                }
+            }
         };
     </script>
 </body>

@@ -77,12 +77,19 @@ This is the source of truth for all game locations and activities.
 
 ## Technology Stack
 
-**Pure vanilla JavaScript** - No frameworks, libraries, or build tools:
-- ES6+ JavaScript
+**Frontend:**
+- Pure vanilla JavaScript (ES6+)
 - CSS3 with animations
+- Single HTML file (no build process)
 - Web APIs: Clipboard, Web Audio, Vibration
 
-**No backend** - Everything runs client-side. State is lost on page refresh.
+**Backend (Optional but Recommended):**
+- Supabase for real-time multi-device sync
+- PostgreSQL database (via Supabase)
+- Real-time subscriptions (WebSocket-based)
+- Row Level Security (RLS) for data protection
+
+**Note:** App works offline (client-side only) if Supabase credentials not configured, but multi-device joining requires Supabase.
 
 ## Common Issues
 
@@ -108,9 +115,34 @@ Console logs are present in initialization functions. Check browser console for:
 4. **View switcher pattern** - Simulates multiple devices in single browser for testing
 5. **Host-centric** - UI designed from host perspective with player view simulation
 
+## Supabase Backend Setup
+
+To enable multi-device support:
+1. Follow instructions in `SUPABASE_SETUP.md`
+2. Run `supabase-schema.sql` in Supabase SQL Editor
+3. Add credentials to `index.html` (lines 976-977)
+4. Deploy to Vercel
+
+**Database Schema:**
+- `games` table: Stores game state, settings, room codes
+- `players` table: Stores player names, roles, tasks, status
+- Automatic cleanup: Games expire after 4 hours
+- RLS policies: Public read/write with time-based restrictions
+
+**Real-time Sync:**
+- Subscribe to game updates when entering waiting room
+- Subscribe to player updates for lobby
+- Unsubscribe when leaving/game ends
+- All devices see changes in real-time via WebSocket
+
 ## Known Limitations
 
+**With Supabase (Recommended):**
+- Games expire after 4 hours (configurable in database)
+- Free tier limits: 500MB database, 1GB bandwidth/month
+
+**Without Supabase (Offline Mode):**
 - No persistent storage (refresh = lost game state)
 - No real-time sync between devices
-- Room codes are cosmetic (no actual room validation)
-- Limited to one game instance per device/browser tab
+- Room codes don't actually connect devices
+- Each device has separate game state
