@@ -662,7 +662,7 @@
                     <textarea id="additional-rules" placeholder="Example: The basement and second floor are out of bounds. Stay on the main floor only."></textarea>
                 </div>
 
-                <button class="btn-primary btn-block" onclick="createGame()">Create Game & Enter Waiting Room</button>
+                <button class="btn-primary btn-block" onclick="(async () => await createGame())()">Create Game & Enter Waiting Room</button>
             </div>
         </div>
 
@@ -1090,6 +1090,7 @@
                     .from('games')
                     .insert({
                         room_code: gameState.roomCode,
+                        host_name: null,  // Explicitly set as null initially, will be set when creator joins
                         stage: gameState.stage,
                         settings: gameState.settings,
                         meetings_used: gameState.meetingsUsed,
@@ -1278,7 +1279,10 @@
                         const newData = payload.new;
 
                         // Update local state from DB
-                        gameState.hostName = newData.host_name;
+                        // Only update hostName if it's not null (prevent overwriting valid host with null)
+                        if (newData.host_name !== null && newData.host_name !== undefined) {
+                            gameState.hostName = newData.host_name;
+                        }
                         gameState.stage = newData.stage;
                         gameState.settings = newData.settings;
                         gameState.meetingsUsed = newData.meetings_used;
@@ -1841,7 +1845,8 @@
             console.log('Player joined:', name, '| isGameCreator:', isGameCreator, '| currentGameId:', currentGameId, '| current hostName:', gameState.hostName);
 
             // If this device created the game and there's no host yet, set this player as host
-            if (isGameCreator && !gameState.hostName) {
+            // Defensive check: only set as host if hostName is null or undefined
+            if (isGameCreator && (gameState.hostName === null || gameState.hostName === undefined)) {
                 gameState.hostName = name;
                 console.log('Setting host:', name);
 
