@@ -1751,6 +1751,10 @@
                 return;
             }
 
+            // Mark this device as the game creator FIRST (before any UI updates that check host status)
+            isGameCreator = true;
+            console.log('Game created - isGameCreator set to true');
+
             // Generate room code
             gameState.roomCode = generateRoomCode();
             document.getElementById('room-code').textContent = gameState.roomCode;
@@ -1768,12 +1772,8 @@
             // Generate QR code for joining
             generateQRCode();
 
-            // Update join section to show correct view
+            // Update join section to show correct view (now isHost() will return true)
             updateJoinSection();
-
-            // Mark this device as the game creator (will become host when they join)
-            isGameCreator = true;
-            console.log('Game created - isGameCreator set to true');
 
             // Create game in database - WAIT for it to complete so currentGameId is set
             await createGameInDB();
