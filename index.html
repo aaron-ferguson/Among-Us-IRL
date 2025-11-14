@@ -564,7 +564,7 @@
     <div class="container">
         <header>
             <h1>Among Us IRL</h1>
-            <p class="subtitle">In-Person Game Manager</p>
+            <p class="subtitle">Minigames and betrayal in your own backyard!</p>
         </header>
 
         <!-- STAGE 1: GAME SETUP -->
@@ -1072,7 +1072,9 @@
 
         // Check if this device is the host
         function isHost() {
-            return gameState.hostName && myPlayerName === gameState.hostName;
+            const result = gameState.hostName && myPlayerName === gameState.hostName;
+            console.log('isHost check - hostName:', gameState.hostName, '| myPlayerName:', myPlayerName, '| result:', result);
+            return result;
         }
 
         // ==================== SUPABASE HELPER FUNCTIONS ====================
@@ -1720,7 +1722,7 @@
             qrCodeImage.src = qrApiUrl;
         }
 
-        function createGame() {
+        async function createGame() {
             // Gather settings
             gameState.settings.minPlayers = parseInt(document.getElementById('min-players').value);
             gameState.settings.maxPlayers = parseInt(document.getElementById('max-players').value);
@@ -1766,9 +1768,11 @@
 
             // Mark this device as the game creator (will become host when they join)
             isGameCreator = true;
+            console.log('Game created - isGameCreator set to true');
 
-            // Create game in database
-            createGameInDB();
+            // Create game in database - WAIT for it to complete so currentGameId is set
+            await createGameInDB();
+            console.log('Database ready - currentGameId:', currentGameId);
         }
 
         function showInstructions() {
@@ -1834,6 +1838,7 @@
 
             // Track this device's player
             myPlayerName = name;
+            console.log('Player joined:', name, '| isGameCreator:', isGameCreator, '| currentGameId:', currentGameId, '| current hostName:', gameState.hostName);
 
             // If this device created the game and there's no host yet, set this player as host
             if (isGameCreator && !gameState.hostName) {
@@ -1842,11 +1847,21 @@
 
                 // Update host in database
                 if (supabaseClient && currentGameId) {
-                    await supabaseClient
+                    const { error } = await supabaseClient
                         .from('games')
                         .update({ host_name: name })
                         .eq('id', currentGameId);
+
+                    if (error) {
+                        console.error('Failed to set host in database:', error);
+                    } else {
+                        console.log('Host successfully set in database');
+                    }
+                } else {
+                    console.warn('Cannot set host in database - supabaseClient or currentGameId missing');
                 }
+            } else {
+                console.log('Not setting as host - isGameCreator:', isGameCreator, 'gameState.hostName:', gameState.hostName);
             }
 
             nameInput.value = '';
