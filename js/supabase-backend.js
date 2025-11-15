@@ -126,7 +126,15 @@ return null;
 }
 
 async function updateGameInDB() {
-if (!supabaseClient || !currentGameId) return;
+console.log('=== updateGameInDB() CALLED ===');
+console.log('supabaseClient:', !!supabaseClient);
+console.log('currentGameId:', currentGameId);
+console.log('gameState.stage:', gameState.stage);
+
+if (!supabaseClient || !currentGameId) {
+console.warn('Cannot update game in DB - missing supabaseClient or currentGameId');
+return;
+}
 
 try {
 // Ensure meeting state is in settings for DB sync
@@ -136,6 +144,7 @@ gameState.settings.votingStarted = gameState.votingStarted;
 gameState.settings.meetingCaller = gameState.meetingCaller;
 gameState.settings.meetingType = gameState.meetingType;
 
+console.log('Updating database with stage:', gameState.stage);
 const { error } = await supabaseClient
 .from('games')
 .update({
@@ -148,6 +157,7 @@ winner: gameState.winner
 .eq('id', currentGameId);
 
 if (error) throw error;
+console.log('✓ Database updated successfully');
 } catch (error) {
 console.error('Error updating game:', error);
 }
@@ -208,8 +218,11 @@ table: 'games',
 filter: `id=eq.${currentGameId}`
 },
 (payload) => {
-console.log('Game updated:', payload);
+console.log('=== GAME UPDATE RECEIVED ===');
+console.log('Full payload:', payload);
 const newData = payload.new;
+console.log('New stage from DB:', newData.stage);
+console.log('Current local stage:', gameState.stage);
 
 // Update local state from DB
 // Only update hostName if it's not null (prevent overwriting valid host with null)
@@ -217,6 +230,7 @@ if (newData.host_name !== null && newData.host_name !== undefined) {
 gameState.hostName = newData.host_name;
 }
 gameState.stage = newData.stage;
+console.log('Local stage updated to:', gameState.stage);
 
 // Only update settings if they exist (prevent overwriting valid settings with null/undefined)
 if (newData.settings !== null && newData.settings !== undefined) {
@@ -286,6 +300,7 @@ tallyVotes();
 }
 
 // Update UI based on stage
+console.log('Calling handleStageChange() with stage:', gameState.stage);
 handleStageChange();
 
 // Update host controls visibility
@@ -298,10 +313,18 @@ console.log('Subscribed to game updates');
 }
 
 function subscribeToPlayers() {
-if (!supabaseClient || !currentGameId) return;
+console.log('=== SUBSCRIBING TO PLAYERS ===');
+console.log('supabaseClient:', !!supabaseClient);
+console.log('currentGameId:', currentGameId);
+
+if (!supabaseClient || !currentGameId) {
+console.warn('Cannot subscribe to players - missing supabaseClient or currentGameId');
+return;
+}
 
 // Unsubscribe from previous channel if exists
 if (playersChannel) {
+console.log('Removing previous players channel');
 supabaseClient.removeChannel(playersChannel);
 }
 
@@ -315,13 +338,14 @@ table: 'players',
 filter: `game_id=eq.${currentGameId}`
 },
 (payload) => {
+console.log('=== PLAYERS SUBSCRIPTION CALLBACK ===');
 console.log('Players changed:', payload);
 handlePlayerChange(payload);
 }
 )
 .subscribe();
 
-console.log('Subscribed to player updates');
+console.log('✓ Subscribed to player updates for game:', currentGameId);
 }
 
 let playerExistenceInterval = null;
@@ -367,11 +391,18 @@ returnToMenu();
 }
 
 function handlePlayerChange(payload) {
+console.log('=== PLAYER CHANGE EVENT ===');
+console.log('Event type:', payload.eventType);
+console.log('Payload:', payload);
+console.log('Current gameState.players count:', gameState.players.length);
+
 const { eventType, new: newData, old: oldData } = payload;
 
 if (eventType === 'INSERT') {
 // New player joined
+console.log('INSERT event - new player:', newData.name);
 const existingIndex = gameState.players.findIndex(p => p.name === newData.name);
+console.log('Existing index:', existingIndex);
 if (existingIndex === -1) {
 gameState.players.push({
 name: newData.name,
@@ -382,11 +413,17 @@ alive: newData.alive,
 tasksCompleted: newData.tasks_completed || 0,
 votedFor: newData.voted_for
 });
+console.log('Player added! New player count:', gameState.players.length);
+console.log('Calling updateLobby()...');
 updateLobby();
+} else {
+console.log('Player already exists in local array, skipping');
 }
 } else if (eventType === 'UPDATE') {
 // Player updated
+console.log('UPDATE event - player:', newData.name);
 const playerIndex = gameState.players.findIndex(p => p.name === newData.name);
+console.log('Player index:', playerIndex);
 if (playerIndex !== -1) {
 gameState.players[playerIndex] = {
 name: newData.name,
@@ -397,7 +434,10 @@ alive: newData.alive,
 tasksCompleted: newData.tasks_completed || 0,
 votedFor: newData.voted_for
 };
+console.log('Player updated! Calling updateLobby()...');
 updateLobby();
+} else {
+console.log('Player not found in local array, cannot update');
 }
 } else if (eventType === 'DELETE') {
 // Player left or was kicked
@@ -433,6 +473,7 @@ console.log('=== handleStageChange called ===');
 console.log('Current stage:', gameState.stage);
 console.log('myPlayerName:', myPlayerName);
 console.log('isHost():', isHost());
+console.log('currentGameId:', currentGameId);
 
 // Show/hide appropriate UI sections based on stage
 if (gameState.stage === 'waiting') {
@@ -459,13 +500,19 @@ document.getElementById('waiting-room').classList.remove('hidden');
 updateLobby();
 }
 } else if (gameState.stage === 'playing') {
+console.log('Stage is PLAYING - transitioning to game phase');
+console.log('myPlayerName:', myPlayerName);
+console.log('gameState.currentPlayer:', gameState.currentPlayer);
+
 // Set current player if not already set (for non-host players joining mid-game)
 if (!gameState.currentPlayer && myPlayerName) {
 gameState.currentPlayer = myPlayerName;
+console.log('Set currentPlayer to:', myPlayerName);
 }
 
 // For non-host players, reload player data from DB to get roles/tasks
 if (myPlayerName && supabaseClient && currentGameId) {
+console.log('Loading player data from DB for:', myPlayerName);
 try {
 const { data, error } = await supabaseClient
 .from('players')
@@ -489,9 +536,12 @@ console.error('Error loading player data:', err);
 }
 }
 
+console.log('Updating UI: hiding waiting room, showing game phase');
 document.getElementById('waiting-room').classList.add('hidden');
 document.getElementById('game-phase').classList.remove('hidden');
+console.log('Calling displayGameplay()...');
 displayGameplay();
+console.log('✓ Transition to playing stage complete');
 } else if (gameState.stage === 'meeting') {
 // Only show meeting alert if player hasn't acknowledged yet
 const hasAcknowledged = gameState.meetingReady && gameState.meetingReady[myPlayerName];

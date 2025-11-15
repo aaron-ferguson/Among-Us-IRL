@@ -347,6 +347,11 @@ updateHostControls();
 }
 
 function updateLobby() {
+console.log('=== UPDATE LOBBY CALLED ===');
+console.log('gameState.stage:', gameState.stage);
+console.log('gameState.players count:', gameState.players.length);
+console.log('Players:', gameState.players.map(p => p.name).join(', '));
+
 // Safety check - only skip if we're not in waiting stage (prevents errors during menu transition)
 if (gameState.stage !== 'waiting') {
 console.log('updateLobby called but not in waiting stage, ignoring');
@@ -368,6 +373,7 @@ return;
 lobbyDiv.innerHTML = '';
 
 const readyPlayers = gameState.players.filter(p => p.ready);
+console.log('Ready players count:', readyPlayers.length);
 
 gameState.players.forEach((player, index) => {
 const badge = document.createElement('div');
@@ -513,6 +519,11 @@ removePlayerFromDB(playerName);
 }
 
 function startGame() {
+console.log('=== START GAME CALLED ===');
+console.log('isHost():', isHost());
+console.log('currentGameId:', currentGameId);
+console.log('supabaseClient:', !!supabaseClient);
+
 // Only host can start the game
 if (!isHost()) {
 alert('Only the host can start the game!');
@@ -588,12 +599,14 @@ gameState.currentPlayer = gameState.players[0]?.name || null;
 
 // Switch to game phase
 gameState.stage = 'playing';
+console.log('Stage set to playing, updating UI...');
 document.getElementById('waiting-room').classList.add('hidden');
 document.getElementById('game-phase').classList.remove('hidden');
 
 displayGameplay();
 
 // Update game state in database
+console.log('Calling updateGameInDB() to sync stage to database...');
 updateGameInDB();
 
 // Update all players with their roles/tasks in database
@@ -1180,14 +1193,30 @@ return; // Don't show resume button, game is ending
 // Show resume button for host (game continues)
 const resumeBtn = document.getElementById('resume-game-btn');
 const waitingMsg = document.getElementById('waiting-for-host-resume');
-if (isHost()) {
+
+console.log('=== Resume Button Setup (tallyVotes) ===');
+console.log('isHost():', isHost());
+console.log('myPlayerName:', myPlayerName);
+console.log('gameState.hostName:', gameState.hostName);
+console.log('isGameCreator:', isGameCreator);
+
+// Always show the button, but disable it for non-hosts
 resumeBtn.classList.remove('hidden');
 waitingMsg.classList.add('hidden');
+
+if (isHost()) {
+console.log('→ Setting button for HOST');
+resumeBtn.disabled = false;
+resumeBtn.textContent = 'Resume Game';
+resumeBtn.className = 'btn-success btn-block';
 } else {
-resumeBtn.classList.add('hidden');
-waitingMsg.textContent = 'Waiting for host to resume the game...';
-waitingMsg.classList.remove('hidden');
+console.log('→ Setting button for NON-HOST (disabled)');
+resumeBtn.disabled = true;
+resumeBtn.textContent = 'Only Host Can Resume Game';
+resumeBtn.className = 'btn-secondary btn-block';
 }
+console.log('Button state after setup - disabled:', resumeBtn.disabled, 'text:', resumeBtn.textContent);
+console.log('=========================================');
 }
 
 function displayVoteResults(voteCounts, eliminatedPlayer, isTie) {
@@ -1220,19 +1249,29 @@ ejectedText.textContent = `${eliminatedPlayer} was ejected. They were ${role ===
 ejectedText.textContent = 'No one was ejected.';
 }
 
-// Show appropriate message/button based on host status
+// Show appropriate button based on host status
 const resumeBtn = document.getElementById('resume-game-btn');
 const waitingMsg = document.getElementById('waiting-for-host-resume');
 
-// Initially hide both (will be shown by tallyVotes when game doesn't end)
+console.log('=== Resume Button Setup (displayVoteResults) ===');
+console.log('isHost():', isHost());
+console.log('myPlayerName:', myPlayerName);
+console.log('gameState.hostName:', gameState.hostName);
+
+// Initially hide both (will be configured by tallyVotes when game doesn't end)
 resumeBtn.classList.add('hidden');
 waitingMsg.classList.add('hidden');
 
-// For non-hosts, show waiting message immediately
+// Show disabled button for non-hosts immediately
 if (!isHost()) {
-waitingMsg.textContent = 'Waiting for host to resume the game...';
-waitingMsg.classList.remove('hidden');
+console.log('→ NON-HOST: Setting disabled button immediately');
+resumeBtn.disabled = true;
+resumeBtn.textContent = 'Only Host Can Resume Game';
+resumeBtn.className = 'btn-secondary btn-block';
+resumeBtn.classList.remove('hidden');
+console.log('Button state - disabled:', resumeBtn.disabled, 'text:', resumeBtn.textContent);
 }
+console.log('================================================');
 }
 
 function checkWinConditions() {
@@ -1272,9 +1311,8 @@ return null;
 }
 
 function resumeGame() {
-// Only host can resume the game
+// Only host can resume the game (button is disabled for non-hosts)
 if (!isHost()) {
-alert('Only the host can resume the game!');
 return;
 }
 
