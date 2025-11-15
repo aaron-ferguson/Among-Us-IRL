@@ -384,13 +384,14 @@
         .task-item-wrapper {
             position: relative;
             margin-bottom: 8px;
-            overflow: hidden;
+            overflow: hidden; /* Hides delete button until swiped */
             border-radius: 6px;
+            background: rgba(255, 255, 255, 0.05); /* Background stays in place */
         }
 
         .task-item {
             padding: 12px;
-            background: rgba(255, 255, 255, 0.05);
+            background: rgba(255, 255, 255, 0.05); /* Item background covers delete button */
             border-radius: 6px;
             display: flex;
             align-items: flex-start;
@@ -398,7 +399,8 @@
             position: relative;
             transition: transform 0.3s ease, background 0.2s ease;
             touch-action: pan-y;
-            z-index: 2;
+            z-index: 2; /* Above delete button */
+            width: 100%; /* Full width to cover delete button */
         }
 
         .task-item:hover {
@@ -406,7 +408,7 @@
         }
 
         .task-item.swiped {
-            transform: translateX(-80px);
+            transform: translateX(-80px); /* Slides left to reveal delete */
         }
 
         .task-item input[type="checkbox"] {
@@ -435,13 +437,14 @@
             right: 0;
             bottom: 0;
             width: 80px;
+            height: 100%;
             background: linear-gradient(135deg, #ff3838 0%, #d32f2f 100%);
             display: none; /* Hidden unless in edit mode on mobile */
             align-items: center;
             justify-content: center;
-            z-index: 1;
+            z-index: 1; /* Behind task item (z-index: 2) */
             cursor: pointer;
-            transition: opacity 0.3s ease;
+            border-radius: 6px;
         }
 
         /* Only show swipe delete on mobile in edit mode */
@@ -1127,7 +1130,7 @@
                 <!-- Join Game Input (hidden by default) -->
                 <div id="join-game-section" class="hidden" style="margin-top: 30px; padding-top: 30px; border-top: 2px solid rgba(255,255,255,0.1);">
                     <h3>Enter Room Code</h3>
-                    <input type="text" id="menu-room-code-input" placeholder="Enter 4-letter code"
+                    <input type="text" id="menu-room-code-input" placeholder="ABCD"
                            style="width: 100%; padding: 15px; font-size: 1.2rem; text-align: center; text-transform: uppercase; letter-spacing: 5px; margin-bottom: 15px;"
                            maxlength="4">
                     <div style="display: flex; gap: 10px;">
@@ -1360,6 +1363,13 @@
 
         <!-- STAGE 4: MEETING -->
         <div id="meeting-phase" class="hidden">
+            <!-- Host Elimination Controls -->
+            <div class="card hidden" id="host-elimination-controls">
+                <h2>Mark Additional Eliminations</h2>
+                <p style="color: #a0a0a0; margin-bottom: 15px;">Update player status before voting:</p>
+                <div id="host-player-status-list"></div>
+            </div>
+
             <!-- Report Body Selection -->
             <div class="card hidden" id="report-selection">
                 <h2>Report Body</h2>
@@ -1374,21 +1384,39 @@
                 <p style="text-align: center; color: #a0a0a0; margin-bottom: 20px;">
                     Discuss who you think the imposter is...
                 </p>
+
+                <!-- Ready status -->
+                <div style="margin-bottom: 20px; padding: 15px; background: rgba(255, 255, 255, 0.05); border-radius: 8px;">
+                    <p style="color: #a0a0a0; margin-bottom: 10px;">Players Ready: <span id="ready-for-vote-count">0</span>/<span id="total-players-count">0</span></p>
+                    <div id="players-ready-list" style="font-size: 0.9rem; color: #5eb3f6;"></div>
+                </div>
+
                 <div style="text-align: center;">
                     <div class="timer-display" id="discussion-timer">60</div>
-                    <button class="btn-success btn-block" onclick="startVoting()" id="start-voting-btn">
+                    <button class="btn-success btn-block hidden" onclick="hostStartVoting()" id="host-start-voting-btn">
                         Start Voting
                     </button>
+                    <p id="waiting-for-players-msg" style="color: #a0a0a0; margin-top: 15px;">Waiting for all players to be ready...</p>
                 </div>
             </div>
 
             <!-- Voting Phase -->
             <div class="card hidden" id="voting-phase">
                 <h2>Vote to Eject</h2>
+
+                <!-- Player status list -->
+                <div style="margin-bottom: 20px; padding: 15px; background: rgba(255, 255, 255, 0.05); border-radius: 8px;">
+                    <h3 style="font-size: 1rem; margin-bottom: 12px; color: #5eb3f6;">Player Status</h3>
+                    <div id="vote-player-status-list" style="font-size: 0.9rem;"></div>
+                </div>
+
                 <p style="text-align: center; color: #a0a0a0; margin-bottom: 15px;">
                     Time remaining: <span id="vote-timer">60</span>s
                 </p>
+
+                <h3 style="font-size: 1.1rem; margin-bottom: 12px;">Vote to eliminate:</h3>
                 <div id="vote-options"></div>
+
                 <button class="btn-primary btn-block" onclick="submitVote()" id="submit-vote-btn" disabled>
                     Submit Vote
                 </button>
@@ -1401,9 +1429,12 @@
                 <div style="margin-top: 20px; padding: 20px; background: rgba(255, 255, 255, 0.05); border-radius: 10px; text-align: center;">
                     <h3 id="ejected-player-text"></h3>
                 </div>
-                <button class="btn-success btn-block" onclick="resumeGame()">
+                <button class="btn-success btn-block" onclick="resumeGame()" id="resume-game-btn">
                     Resume Game
                 </button>
+                <p id="waiting-for-host-resume" class="hidden" style="color: #a0a0a0; text-align: center; margin-top: 15px;">
+                    Waiting for host to resume the game...
+                </p>
             </div>
         </div>
 
@@ -1560,17 +1591,6 @@
             <div class="meeting-content">
                 <h2>MEETING CALLED</h2>
                 <p style="font-size: 1.5rem; margin-bottom: 30px;">Return to: <span id="meeting-location-alert">Meeting Room</span></p>
-
-                <!-- Meeting type selection - only shown to the player who called the meeting -->
-                <div id="meeting-caller-controls" class="hidden" style="margin-bottom: 20px;">
-                    <p style="color: #666; margin-bottom: 15px;">What type of meeting is this?</p>
-                    <button class="btn-secondary btn-block" onclick="selectMeetingType('report')" style="margin-bottom: 10px;">
-                        Report
-                    </button>
-                    <button class="btn-primary btn-block" onclick="selectMeetingType('emergency')">
-                        Emergency Meeting
-                    </button>
-                </div>
 
                 <button class="btn-primary" style="font-size: 1.2rem; padding: 15px 40px;" onclick="acknowledgeMeeting()">
                     I'm Here
@@ -1821,6 +1841,13 @@
             if (!supabaseClient || !currentGameId) return;
 
             try {
+                // Ensure meeting state is in settings for DB sync
+                gameState.settings.meetingReady = gameState.meetingReady;
+                gameState.settings.votes = gameState.votes;
+                gameState.settings.votingStarted = gameState.votingStarted;
+                gameState.settings.meetingCaller = gameState.meetingCaller;
+                gameState.settings.meetingType = gameState.meetingType;
+
                 const { error } = await supabaseClient
                     .from('games')
                     .update({
@@ -1929,6 +1956,46 @@
                         gameState.meetingsUsed = newData.meetings_used;
                         gameState.gameEnded = newData.game_ended;
                         gameState.winner = newData.winner;
+
+                        // Sync meeting-related state
+                        if (newData.settings) {
+                            gameState.meetingReady = newData.settings.meetingReady || {};
+                            gameState.votes = newData.settings.votes || {};
+                            gameState.votingStarted = newData.settings.votingStarted || false;
+                            gameState.meetingCaller = newData.settings.meetingCaller;
+                        }
+
+                        // If voting has started and we're in discussion phase, start voting
+                        if (gameState.votingStarted && !document.getElementById('voting-phase').classList.contains('hidden') === false) {
+                            const discussionVisible = !document.getElementById('discussion-phase').classList.contains('hidden');
+                            if (discussionVisible && !isHost()) {
+                                startVoting();
+                            }
+                        }
+
+                        // Update ready status if in discussion
+                        if (!document.getElementById('discussion-phase').classList.contains('hidden')) {
+                            updateReadyStatus();
+                        }
+
+                        // Check if all votes are in and we're waiting for results
+                        const voteResultsVisible = !document.getElementById('vote-results').classList.contains('hidden');
+                        if (voteResultsVisible && isHost()) {
+                            const totalPlayers = gameState.players.length;
+                            const votesSubmitted = Object.keys(gameState.votes).length;
+
+                            // Update vote count display
+                            const resultsDisplay = document.getElementById('results-display');
+                            if (resultsDisplay && votesSubmitted < totalPlayers) {
+                                resultsDisplay.innerHTML = `
+                                    <p style="color: #a0a0a0;">Votes submitted: ${votesSubmitted}/${totalPlayers}</p>
+                                    <p style="color: #5eb3f6;">Waiting for all players to vote...</p>
+                                `;
+                            } else if (votesSubmitted === totalPlayers && resultsDisplay.textContent.includes('Waiting')) {
+                                // All votes are in! Tally them
+                                tallyVotes();
+                            }
+                        }
 
                         // Update UI based on stage
                         handleStageChange();
@@ -2138,20 +2205,20 @@
                 document.getElementById('game-phase').classList.remove('hidden');
                 displayGameplay();
             } else if (gameState.stage === 'meeting') {
-                // Show meeting alert for all players
-                console.log('Meeting stage detected, showing alert');
-                document.getElementById('meeting-location-alert').textContent = gameState.settings.meetingRoom;
-                document.getElementById('meeting-overlay').classList.remove('hidden');
+                // Only show meeting alert if player hasn't acknowledged yet
+                const hasAcknowledged = gameState.meetingReady && gameState.meetingReady[myPlayerName];
+                const meetingPhaseVisible = !document.getElementById('meeting-phase').classList.contains('hidden');
 
-                // Only show meeting controls for the player who called the meeting
-                if (myPlayerName === gameState.meetingCaller) {
-                    document.getElementById('meeting-caller-controls').classList.remove('hidden');
+                if (!hasAcknowledged && !meetingPhaseVisible) {
+                    console.log('Meeting stage detected, showing alert');
+                    document.getElementById('meeting-location-alert').textContent = gameState.settings.meetingRoom;
+                    document.getElementById('meeting-overlay').classList.remove('hidden');
+
+                    // Play alarm sound for everyone
+                    playAlarmSound();
                 } else {
-                    document.getElementById('meeting-caller-controls').classList.add('hidden');
+                    console.log('Player already acknowledged meeting or in meeting phase');
                 }
-
-                // Play alarm sound for everyone
-                playAlarmSound();
             } else if (gameState.stage === 'ended') {
                 // Game has ended - show end screen
                 console.log('Game ended stage detected');
@@ -2435,6 +2502,8 @@
                 // Only allow swipe left (positive diff)
                 if (diff > 0 && diff < 100) {
                     e.preventDefault();
+                    // Temporarily disable transition for smooth following
+                    element.style.transition = 'none';
                     element.style.transform = `translateX(-${diff}px)`;
                 }
             }
@@ -2445,6 +2514,9 @@
 
                 const diff = startX - currentX;
 
+                // Re-enable transition for snap animation
+                element.style.transition = '';
+
                 // If already swiped and user swipes left again, delete
                 if (element.classList.contains('swiped') && diff > 30) {
                     handleTaskDelete(roomName, taskIndex);
@@ -2454,10 +2526,10 @@
                 // Threshold for revealing delete (40px)
                 if (diff > 40) {
                     element.classList.add('swiped');
-                    element.style.transform = '';
+                    element.style.transform = ''; // Let CSS class handle position
                 } else {
                     element.classList.remove('swiped');
-                    element.style.transform = '';
+                    element.style.transform = ''; // Return to normal position
                 }
             }
         }
@@ -3521,7 +3593,7 @@
         function eliminatePlayer() {
             const player = gameState.players.find(p => p.name === gameState.currentPlayer);
             if (player) {
-                player.isAlive = false;
+                player.alive = false;
 
                 // Generate QR code for eliminated player
                 const eliminatedMessage = `ELIMINATED: ${player.name} - Room: ${gameState.roomCode}`;
@@ -3570,9 +3642,6 @@
             document.getElementById('meeting-location-alert').textContent = gameState.settings.meetingRoom;
             document.getElementById('meeting-overlay').classList.remove('hidden');
 
-            // Show meeting controls only for the caller
-            document.getElementById('meeting-caller-controls').classList.remove('hidden');
-
             // Play alarm sound
             playAlarmSound();
         }
@@ -3604,53 +3673,155 @@
             document.getElementById('game-phase').classList.add('hidden');
             document.getElementById('meeting-phase').classList.remove('hidden');
 
-            // Show appropriate meeting phase based on type
+            // Hide all meeting sub-phases except discussion
+            document.getElementById('report-selection').classList.add('hidden');
+            document.getElementById('voting-phase').classList.add('hidden');
+            document.getElementById('vote-results').classList.add('hidden');
+            document.getElementById('discussion-phase').classList.remove('hidden');
+
+            // Update discussion header based on meeting type
+            const discussionHeader = document.querySelector('#discussion-phase h2');
             if (gameState.meetingType === 'report') {
-                document.getElementById('report-selection').classList.remove('hidden');
-                // Populate eliminated players list
-                const list = document.getElementById('eliminated-players-list');
-                list.innerHTML = '';
-                gameState.players.filter(p => !p.alive).forEach(player => {
-                    const option = document.createElement('div');
-                    option.className = 'vote-option';
-                    option.innerHTML = `
-                        <input type="checkbox" value="${player.name}">
-                        <label>${player.name}</label>
-                    `;
-                    list.appendChild(option);
-                });
-            } else if (gameState.meetingType === 'emergency') {
+                discussionHeader.textContent = 'Body Reported - Discussion';
+            } else {
+                discussionHeader.textContent = 'Emergency Meeting - Discussion';
+            }
+
+            // If emergency meeting, decrement the counter
+            if (gameState.meetingType === 'emergency') {
                 gameState.meetingsUsed++;
-                document.getElementById('discussion-phase').classList.remove('hidden');
-                startDiscussionTimer();
 
                 // Update meetings used in database
                 if (supabaseClient && currentGameId) {
                     updateGameInDB();
                 }
             }
-        }
 
-        function selectMeetingType(type) {
-            // Store the meeting type (both in gameState and settings for DB sync)
-            gameState.meetingType = type;
-            gameState.settings.meetingType = type;
+            // Initialize meeting ready tracking
+            if (!gameState.meetingReady) {
+                gameState.meetingReady = {};
+            }
 
-            // Hide the caller controls on the overlay
-            document.getElementById('meeting-caller-controls').classList.add('hidden');
+            // Mark this player as ready
+            if (myPlayerName) {
+                gameState.meetingReady[myPlayerName] = true;
+            }
 
-            console.log('Meeting type selected:', type);
+            // Show host controls if this is the host
+            if (isHost()) {
+                document.getElementById('host-elimination-controls').classList.remove('hidden');
+                renderHostPlayerStatus();
+            }
 
-            // Update the database so all players know the meeting type
+            // Update ready count display
+            updateReadyStatus();
+
+            // Sync to database
             if (supabaseClient && currentGameId) {
                 updateGameInDB();
             }
         }
 
-        function confirmReport() {
-            document.getElementById('report-selection').classList.add('hidden');
-            document.getElementById('discussion-phase').classList.remove('hidden');
-            startDiscussionTimer();
+
+        function renderHostPlayerStatus() {
+            const list = document.getElementById('host-player-status-list');
+            list.innerHTML = '';
+
+            gameState.players.forEach(player => {
+                const item = document.createElement('div');
+                item.style.cssText = 'display: flex; align-items: center; justify-content: space-between; padding: 10px; margin-bottom: 8px; background: rgba(255, 255, 255, 0.05); border-radius: 6px;';
+
+                const statusBadge = player.alive
+                    ? '<span style="color: #4caf50;">✓ Alive</span>'
+                    : '<span style="color: #ff3838;">✗ Eliminated</span>';
+
+                item.innerHTML = `
+                    <span>${player.name} ${statusBadge}</span>
+                    <button onclick="confirmTogglePlayerAlive('${player.name}')" class="btn-${player.alive ? 'danger' : 'success'} btn-small">
+                        ${player.alive ? 'Mark Eliminated' : 'Mark Alive'}
+                    </button>
+                `;
+                list.appendChild(item);
+            });
+        }
+
+        function confirmTogglePlayerAlive(playerName) {
+            const player = gameState.players.find(p => p.name === playerName);
+            if (!player) return;
+
+            const action = player.alive ? 'eliminate' : 'mark as alive';
+            const confirmed = confirm(`Are you sure you want to ${action} ${playerName}?\n\nThis may affect the game outcome.`);
+
+            if (confirmed) {
+                togglePlayerAlive(playerName);
+            }
+        }
+
+        async function togglePlayerAlive(playerName) {
+            const player = gameState.players.find(p => p.name === playerName);
+            if (player) {
+                player.alive = !player.alive;
+                renderHostPlayerStatus();
+
+                // Sync to database
+                if (supabaseClient && currentGameId) {
+                    await updatePlayerInDB(playerName, { alive: player.alive });
+                }
+
+                // Check win conditions after marking elimination
+                const gameResult = checkWinConditions();
+                if (gameResult) {
+                    const confirmEnd = confirm(`${gameResult.reason}\n\nEnd the game now with ${gameResult.winner} as winners?`);
+                    if (confirmEnd) {
+                        await endGame(gameResult.winner);
+                    } else {
+                        // Undo the elimination
+                        player.alive = !player.alive;
+                        renderHostPlayerStatus();
+                        if (supabaseClient && currentGameId) {
+                            await updatePlayerInDB(playerName, { alive: player.alive });
+                        }
+                    }
+                }
+            }
+        }
+
+        function updateReadyStatus() {
+            const readyCount = Object.keys(gameState.meetingReady || {}).length;
+            const totalCount = gameState.players.length;
+
+            document.getElementById('ready-for-vote-count').textContent = readyCount;
+            document.getElementById('total-players-count').textContent = totalCount;
+
+            // Update ready players list
+            const readyList = document.getElementById('players-ready-list');
+            const readyPlayers = Object.keys(gameState.meetingReady || {});
+            readyList.textContent = readyPlayers.length > 0
+                ? readyPlayers.join(', ')
+                : 'None yet';
+
+            // Show start voting button to host if everyone is ready
+            if (isHost() && readyCount === totalCount && totalCount > 0) {
+                document.getElementById('host-start-voting-btn').classList.remove('hidden');
+                document.getElementById('waiting-for-players-msg').classList.add('hidden');
+            } else {
+                document.getElementById('host-start-voting-btn').classList.add('hidden');
+                document.getElementById('waiting-for-players-msg').classList.remove('hidden');
+            }
+        }
+
+        function hostStartVoting() {
+            // Host initiates voting - update game state
+            gameState.votingStarted = true;
+            gameState.votes = {};
+
+            // Sync to database to notify all players
+            if (supabaseClient && currentGameId) {
+                updateGameInDB();
+            }
+
+            // Start voting for host
+            startVoting();
         }
 
         function startDiscussionTimer() {
@@ -3672,7 +3843,24 @@
             document.getElementById('discussion-phase').classList.add('hidden');
             document.getElementById('voting-phase').classList.remove('hidden');
 
-            // Populate vote options
+            // Reset vote selection
+            selectedVote = null;
+            document.getElementById('submit-vote-btn').disabled = true;
+
+            // Show player status list
+            const statusList = document.getElementById('vote-player-status-list');
+            statusList.innerHTML = '';
+            gameState.players.forEach(player => {
+                const item = document.createElement('div');
+                item.style.cssText = 'padding: 6px; margin-bottom: 4px;';
+                const statusBadge = player.alive
+                    ? '<span style="color: #4caf50;">✓ Alive</span>'
+                    : '<span style="color: #ff3838;">✗ Eliminated</span>';
+                item.innerHTML = `${player.name}: ${statusBadge}`;
+                statusList.appendChild(item);
+            });
+
+            // Populate vote options (only living players)
             const voteOptions = document.getElementById('vote-options');
             voteOptions.innerHTML = '';
 
@@ -3701,6 +3889,12 @@
 
                 if (timeLeft <= 0) {
                     clearInterval(interval);
+                    // Auto-skip if no vote selected
+                    if (!selectedVote) {
+                        selectedVote = 'skip';
+                    }
+                    // Disable button to prevent double-submit
+                    document.getElementById('submit-vote-btn').disabled = true;
                     submitVote();
                 }
             }, 1000);
@@ -3711,32 +3905,233 @@
             document.querySelectorAll('.vote-option').forEach(opt => opt.classList.remove('selected'));
             element.classList.add('selected');
             selectedVote = playerName;
-            document.getElementById('submit-vote-btn').disabled = false;
+            const submitBtn = document.getElementById('submit-vote-btn');
+            if (submitBtn) {
+                submitBtn.disabled = false;
+            }
         }
 
-        function submitVote() {
+        async function submitVote() {
+            // Disable submit button to prevent double-voting
+            document.getElementById('submit-vote-btn').disabled = true;
+
+            // Record this player's vote
+            if (!gameState.votes) {
+                gameState.votes = {};
+            }
+
+            gameState.votes[myPlayerName] = selectedVote || 'skip';
+
+            // Sync vote to database
+            if (supabaseClient && currentGameId) {
+                await updateGameInDB();
+            }
+
+            // Show waiting screen for this player
             document.getElementById('voting-phase').classList.add('hidden');
             document.getElementById('vote-results').classList.remove('hidden');
 
-            // Placeholder vote results
+            const totalPlayers = gameState.players.length;
+            const votesSubmitted = Object.keys(gameState.votes).length;
+
             document.getElementById('results-display').innerHTML = `
-                <div class="vote-results">
-                    <div>Player 1: <strong>3 votes</strong></div>
-                    <div class="vote-bar"><div class="vote-bar-fill" style="width: 60%"></div></div>
-                </div>
-                <div class="vote-results">
-                    <div>Player 2: <strong>2 votes</strong></div>
-                    <div class="vote-bar"><div class="vote-bar-fill" style="width: 40%"></div></div>
-                </div>
+                <p style="color: #a0a0a0;">Votes submitted: ${votesSubmitted}/${totalPlayers}</p>
+                <p style="color: #5eb3f6;">Waiting for all players to vote...</p>
             `;
 
-            document.getElementById('ejected-player-text').textContent =
-                'Player 1 was ejected. They were an Imposter.';
+            // Only host tallies votes, and only when ALL players have voted
+            if (!isHost()) {
+                return;
+            }
+
+            // Check if all players have voted
+            if (votesSubmitted < totalPlayers) {
+                // Not all votes in yet, wait
+                return;
+            }
+
+            // All votes are in! Tally them
+            await tallyVotes();
+        }
+
+        async function tallyVotes() {
+            // Prevent double tallying
+            if (gameState.votesTallied) {
+                return;
+            }
+            gameState.votesTallied = true;
+
+            const voteCounts = {};
+            Object.values(gameState.votes).forEach(vote => {
+                voteCounts[vote] = (voteCounts[vote] || 0) + 1;
+            });
+
+            // Find player with most votes (excluding 'skip')
+            let eliminatedPlayer = null;
+            let maxVotes = 0;
+            const playersWithMaxVotes = [];
+
+            // Find the maximum vote count (excluding skip)
+            Object.entries(voteCounts).forEach(([playerName, count]) => {
+                if (playerName !== 'skip' && count > maxVotes) {
+                    maxVotes = count;
+                }
+            });
+
+            // Find all players with the maximum vote count
+            if (maxVotes > 0) {
+                Object.entries(voteCounts).forEach(([playerName, count]) => {
+                    if (playerName !== 'skip' && count === maxVotes) {
+                        playersWithMaxVotes.push(playerName);
+                    }
+                });
+            }
+
+            // Only eliminate if exactly one player has the most votes
+            const isTie = playersWithMaxVotes.length > 1;
+            if (!isTie && playersWithMaxVotes.length === 1) {
+                eliminatedPlayer = playersWithMaxVotes[0];
+            }
+
+            // Eliminate player if votes are conclusive
+            if (eliminatedPlayer) {
+                const player = gameState.players.find(p => p.name === eliminatedPlayer);
+                if (player) {
+                    player.alive = false;
+
+                    // Update database
+                    if (supabaseClient && currentGameId) {
+                        await updatePlayerInDB(eliminatedPlayer, { alive: false });
+                    }
+                }
+            }
+
+            // Display results
+            displayVoteResults(voteCounts, eliminatedPlayer, isTie);
+
+            // Sync game state to show results to all players
+            if (supabaseClient && currentGameId) {
+                await updateGameInDB();
+            }
+
+            // Check win conditions ONLY if someone was actually eliminated
+            if (eliminatedPlayer) {
+                const gameResult = checkWinConditions();
+                if (gameResult) {
+                    // Game over - show message and end game
+                    setTimeout(() => {
+                        endGame(gameResult.winner);
+                    }, 3000);
+                    return; // Don't show resume button, game is ending
+                }
+            }
+
+            // Show resume button for host (game continues)
+            const resumeBtn = document.getElementById('resume-game-btn');
+            const waitingMsg = document.getElementById('waiting-for-host-resume');
+            if (isHost()) {
+                resumeBtn.classList.remove('hidden');
+                waitingMsg.classList.add('hidden');
+            } else {
+                resumeBtn.classList.add('hidden');
+                waitingMsg.classList.remove('hidden');
+            }
+        }
+
+        function displayVoteResults(voteCounts, eliminatedPlayer, isTie) {
+            document.getElementById('voting-phase').classList.add('hidden');
+            document.getElementById('vote-results').classList.remove('hidden');
+
+            const resultsDisplay = document.getElementById('results-display');
+            const totalVotes = Object.values(voteCounts).reduce((a, b) => a + b, 0);
+
+            resultsDisplay.innerHTML = '';
+            Object.entries(voteCounts).sort((a, b) => b[1] - a[1]).forEach(([playerName, count]) => {
+                const percentage = totalVotes > 0 ? (count / totalVotes) * 100 : 0;
+                resultsDisplay.innerHTML += `
+                    <div class="vote-results" style="margin-bottom: 15px;">
+                        <div>${playerName === 'skip' ? 'Skipped' : playerName}: <strong>${count} vote${count !== 1 ? 's' : ''}</strong></div>
+                        <div class="vote-bar"><div class="vote-bar-fill" style="width: ${percentage}%"></div></div>
+                    </div>
+                `;
+            });
+
+            // Show elimination result
+            const ejectedText = document.getElementById('ejected-player-text');
+            if (isTie) {
+                ejectedText.textContent = 'It was a tie. No one was ejected.';
+            } else if (eliminatedPlayer) {
+                const player = gameState.players.find(p => p.name === eliminatedPlayer);
+                const role = player?.role || 'unknown';
+                ejectedText.textContent = `${eliminatedPlayer} was ejected. They were ${role === 'imposter' ? 'an Imposter' : 'a Crewmate'}.`;
+            } else {
+                ejectedText.textContent = 'No one was ejected.';
+            }
+
+            // Initially hide resume button for everyone (will show for host after tallying)
+            const resumeBtn = document.getElementById('resume-game-btn');
+            const waitingMsg = document.getElementById('waiting-for-host-resume');
+            resumeBtn.classList.add('hidden');
+            waitingMsg.classList.add('hidden');
+        }
+
+        function checkWinConditions() {
+            // Ensure all players have alive property set (defensive)
+            gameState.players.forEach(p => {
+                if (p.alive === undefined || p.alive === null) {
+                    console.warn(`Player ${p.name} has undefined alive status, defaulting to true`);
+                    p.alive = true;
+                }
+            });
+
+            const alivePlayers = gameState.players.filter(p => p.alive === true);
+            const aliveImposters = alivePlayers.filter(p => p.role === 'imposter').length;
+            const aliveCrewmates = alivePlayers.filter(p => p.role === 'crewmate').length;
+            const totalImposters = gameState.players.filter(p => p.role === 'imposter').length;
+            const totalCrewmates = gameState.players.filter(p => p.role === 'crewmate').length;
+
+            console.log('=== Win Condition Check ===');
+            console.log(`Alive imposters: ${aliveImposters}/${totalImposters}`);
+            console.log(`Alive crewmates: ${aliveCrewmates}/${totalCrewmates}`);
+            console.log(`All players:`, gameState.players.map(p => ({ name: p.name, role: p.role, alive: p.alive })));
+
+            // Crewmates win if all imposters are eliminated (and there were imposters to begin with)
+            if (aliveImposters === 0 && totalImposters > 0) {
+                console.log('WIN CONDITION: Crewmates win - all imposters eliminated');
+                return { winner: 'crewmates', reason: 'All imposters eliminated' };
+            }
+
+            // Imposters win if they equal or outnumber crewmates (and there are crewmates to outnumber)
+            if (aliveImposters >= aliveCrewmates && aliveCrewmates > 0 && aliveImposters > 0) {
+                console.log('WIN CONDITION: Imposters win - equal or outnumber crewmates');
+                return { winner: 'imposters', reason: 'Imposters equal or outnumber crewmates' };
+            }
+
+            console.log('WIN CONDITION: None met, game continues');
+            return null;
         }
 
         function resumeGame() {
             document.getElementById('meeting-phase').classList.add('hidden');
             document.getElementById('game-phase').classList.remove('hidden');
+            gameState.stage = 'playing';
+
+            // Reset meeting state
+            gameState.meetingReady = {};
+            gameState.votes = {};
+            gameState.votingStarted = false;
+            gameState.votesTallied = false;
+            gameState.meetingType = null;
+            gameState.meetingCaller = null;
+            selectedVote = null;
+
+            // Update database
+            if (supabaseClient && currentGameId) {
+                updateGameInDB();
+            }
+
+            // Show current view
+            displayGameplay();
         }
 
         function closeEliminatedModal() {
