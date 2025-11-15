@@ -18,7 +18,14 @@
             background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
             color: #fff;
             min-height: 100vh;
-            padding: 20px;
+            padding: 15px;
+        }
+
+        /* Mobile-first: reduce padding on small screens */
+        @media (min-width: 768px) {
+            body {
+                padding: 20px;
+            }
         }
 
         .container {
@@ -28,11 +35,11 @@
 
         header {
             text-align: center;
-            margin-bottom: 30px;
+            margin-bottom: 20px;
         }
 
         h1 {
-            font-size: 2.5rem;
+            font-size: 1.75rem;
             color: #ff3838;
             text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
             margin-bottom: 10px;
@@ -40,29 +47,63 @@
 
         .subtitle {
             color: #a0a0a0;
-            font-size: 1.1rem;
+            font-size: 0.95rem;
+        }
+
+        /* Larger headers on desktop */
+        @media (min-width: 768px) {
+            header {
+                margin-bottom: 30px;
+            }
+
+            h1 {
+                font-size: 2.5rem;
+            }
+
+            .subtitle {
+                font-size: 1.1rem;
+            }
         }
 
         .card {
             background: rgba(255, 255, 255, 0.1);
             backdrop-filter: blur(10px);
-            border-radius: 15px;
-            padding: 25px;
-            margin-bottom: 20px;
+            border-radius: 12px;
+            padding: 18px;
+            margin-bottom: 15px;
             box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
             border: 1px solid rgba(255, 255, 255, 0.18);
         }
 
         .card h2 {
-            margin-bottom: 20px;
+            margin-bottom: 15px;
             color: #5eb3f6;
-            font-size: 1.5rem;
+            font-size: 1.25rem;
         }
 
         .card h3 {
-            margin: 20px 0 15px 0;
+            margin: 15px 0 12px 0;
             color: #5eb3f6;
-            font-size: 1.2rem;
+            font-size: 1.1rem;
+        }
+
+        /* Desktop card styling */
+        @media (min-width: 768px) {
+            .card {
+                border-radius: 15px;
+                padding: 25px;
+                margin-bottom: 20px;
+            }
+
+            .card h2 {
+                margin-bottom: 20px;
+                font-size: 1.5rem;
+            }
+
+            .card h3 {
+                margin: 20px 0 15px 0;
+                font-size: 1.2rem;
+            }
         }
 
         .input-group {
@@ -92,13 +133,26 @@
         textarea,
         select {
             width: 100%;
-            padding: 12px;
+            padding: 14px;
             border: 2px solid rgba(255, 255, 255, 0.2);
             border-radius: 8px;
             background: rgba(255, 255, 255, 0.05);
             color: #fff;
-            font-size: 1rem;
+            font-size: 16px; /* Prevents zoom on iOS */
             transition: all 0.3s;
+            -webkit-appearance: none;
+            appearance: none;
+        }
+
+        /* Desktop input sizing */
+        @media (min-width: 768px) {
+            input[type="text"],
+            input[type="number"],
+            textarea,
+            select {
+                padding: 12px;
+                font-size: 1rem;
+            }
         }
 
         input[type="text"]:focus,
@@ -121,15 +175,26 @@
         }
 
         button {
-            padding: 12px 30px;
+            padding: 14px 24px;
             border: none;
             border-radius: 8px;
-            font-size: 1rem;
+            font-size: 0.95rem;
             font-weight: 600;
             cursor: pointer;
             transition: all 0.3s;
             text-transform: uppercase;
-            letter-spacing: 1px;
+            letter-spacing: 0.5px;
+            min-height: 48px; /* Touch-friendly minimum */
+            touch-action: manipulation; /* Prevents double-tap zoom */
+        }
+
+        /* Desktop button sizing */
+        @media (min-width: 768px) {
+            button {
+                padding: 12px 30px;
+                font-size: 1rem;
+                letter-spacing: 1px;
+            }
         }
 
         .btn-primary {
@@ -198,52 +263,143 @@
             margin-top: 10px;
         }
 
+        /* Small action buttons for room/task management */
+        .btn-small {
+            padding: 6px 12px;
+            font-size: 0.85rem;
+            min-height: 36px;
+            letter-spacing: 0.3px;
+        }
+
+        .btn-icon {
+            padding: 8px 14px;
+            font-size: 0.9rem;
+            min-height: 40px;
+        }
+
+        /* Mobile: slightly larger touch targets for small buttons */
+        @media (max-width: 767px) {
+            .btn-small {
+                padding: 8px 14px;
+                font-size: 0.9rem;
+                min-height: 40px;
+            }
+
+            .btn-icon {
+                padding: 10px 16px;
+                font-size: 0.95rem;
+                min-height: 44px;
+            }
+        }
+
         .hidden {
             display: none !important;
         }
 
         /* Room/Task Selection */
         .room-section {
-            background: rgba(255, 255, 255, 0.05);
-            padding: 15px;
+            background: rgba(255, 255, 255, 0.08);
+            padding: 16px;
             border-radius: 10px;
             margin-bottom: 15px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: background 0.2s ease;
+        }
+
+        .room-section:hover {
+            background: rgba(255, 255, 255, 0.12);
         }
 
         .room-header {
             display: flex;
             align-items: center;
-            gap: 10px;
-            margin-bottom: 10px;
+            gap: 12px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+
+        .room-header label {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #5eb3f6;
+            margin: 0;
+            flex: 1;
+            min-width: 0;
+            word-break: break-word;
         }
 
         .room-checkbox {
-            width: 20px;
-            height: 20px;
+            width: 22px;
+            height: 22px;
+            min-width: 22px;
+            min-height: 22px;
             cursor: pointer;
+            flex-shrink: 0;
         }
 
         .task-list {
             list-style: none;
             margin-left: 30px;
+            margin-top: 10px;
         }
 
         .task-item {
-            padding: 8px;
-            margin-bottom: 5px;
+            padding: 12px;
+            margin-bottom: 8px;
             background: rgba(255, 255, 255, 0.05);
-            border-radius: 5px;
+            border-radius: 6px;
             display: flex;
             align-items: flex-start;
-            justify-content: space-between;
-            gap: 15px;
+            gap: 12px;
+            transition: background 0.2s ease;
+        }
+
+        .task-item:hover {
+            background: rgba(255, 255, 255, 0.1);
         }
 
         .task-item input[type="checkbox"] {
-            margin-top: 3px;
-            width: 18px;
-            height: 18px;
+            margin-top: 2px;
+            width: 20px;
+            height: 20px;
+            min-width: 20px;
+            min-height: 20px;
             cursor: pointer;
+            flex-shrink: 0;
+        }
+
+        .task-item label {
+            flex: 1;
+            margin: 0;
+            cursor: pointer;
+            font-size: 1rem;
+            line-height: 1.5;
+            word-break: break-word;
+        }
+
+        /* Container for rooms and tasks with proper padding */
+        #rooms-tasks-container {
+            padding: 15px 10px 10px 10px;
+        }
+
+        /* Desktop: more spacious layout */
+        @media (min-width: 768px) {
+            .room-section {
+                padding: 18px;
+                margin-bottom: 18px;
+            }
+
+            .room-header {
+                margin-bottom: 16px;
+            }
+
+            .task-list {
+                margin-left: 35px;
+            }
+
+            #rooms-tasks-container {
+                padding: 18px 12px 12px 12px;
+            }
         }
 
         /* Collapsible Section */
@@ -257,6 +413,7 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
+            user-select: none;
         }
 
         .collapsible:hover {
@@ -270,38 +427,111 @@
         }
 
         .collapsible-content.active {
-            max-height: 2000px;
+            max-height: 70vh; /* Mobile-friendly: 70% of viewport height */
+            overflow-y: auto;
+            overflow-x: hidden;
             transition: max-height 0.5s ease-in;
+            /* Smooth scrolling on iOS */
+            -webkit-overflow-scrolling: touch;
+            /* Better scrollbar styling */
+            scrollbar-width: thin;
+            scrollbar-color: rgba(94, 179, 246, 0.6) rgba(255, 255, 255, 0.1);
+            /* Add subtle gradient at bottom to indicate scrollability */
+            position: relative;
+            padding-bottom: 8px;
+        }
+
+        /* Scroll indicator gradient */
+        .collapsible-content.active::after {
+            content: '';
+            position: sticky;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 30px;
+            background: linear-gradient(to bottom, transparent, rgba(26, 26, 46, 0.8));
+            pointer-events: none;
+            display: block;
+            margin-top: -30px;
+        }
+
+        /* Webkit scrollbar styling for rooms/tasks section */
+        .collapsible-content.active::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .collapsible-content.active::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+        }
+
+        .collapsible-content.active::-webkit-scrollbar-thumb {
+            background: rgba(94, 179, 246, 0.6);
+            border-radius: 10px;
+        }
+
+        .collapsible-content.active::-webkit-scrollbar-thumb:hover {
+            background: rgba(94, 179, 246, 0.8);
+        }
+
+        /* Desktop: larger max-height */
+        @media (min-width: 768px) {
+            .collapsible-content.active {
+                max-height: 600px;
+            }
         }
 
         /* Game Stats */
         .game-stats {
             display: flex;
-            justify-content: space-around;
-            flex-wrap: wrap;
-            gap: 15px;
-            margin-bottom: 20px;
+            flex-direction: column;
+            gap: 10px;
+            margin-bottom: 15px;
         }
 
         .stat-box {
             background: rgba(255, 255, 255, 0.05);
-            padding: 15px 25px;
+            padding: 15px 20px;
             border-radius: 10px;
             text-align: center;
-            flex: 1;
-            min-width: 150px;
+            width: 100%;
         }
 
         .stat-number {
-            font-size: 2rem;
+            font-size: 1.75rem;
             font-weight: 700;
             color: #5eb3f6;
         }
 
         .stat-label {
             color: #a0a0a0;
-            font-size: 0.9rem;
+            font-size: 0.85rem;
             margin-top: 5px;
+        }
+
+        /* Desktop stats layout */
+        @media (min-width: 768px) {
+            .game-stats {
+                flex-direction: row;
+                justify-content: space-around;
+                flex-wrap: wrap;
+                gap: 15px;
+                margin-bottom: 20px;
+            }
+
+            .stat-box {
+                flex: 1;
+                min-width: 150px;
+                padding: 15px 25px;
+            }
+
+            .stat-number {
+                font-size: 2rem;
+            }
+
+            .stat-label {
+                font-size: 0.9rem;
+            }
         }
 
         /* Player Badges */
@@ -332,21 +562,21 @@
         /* Role Display */
         .role-display {
             text-align: center;
-            padding: 20px;
+            padding: 18px;
             background: rgba(255, 255, 255, 0.05);
             border-radius: 10px;
-            margin-bottom: 20px;
+            margin-bottom: 15px;
         }
 
         .role-hidden {
-            font-size: 2rem;
+            font-size: 1.5rem;
             letter-spacing: 5px;
             color: #666;
             user-select: none;
         }
 
         .role-revealed {
-            font-size: 2rem;
+            font-size: 1.5rem;
             font-weight: 700;
         }
 
@@ -358,46 +588,95 @@
             color: #5eb3f6;
         }
 
+        /* Desktop role display */
+        @media (min-width: 768px) {
+            .role-display {
+                padding: 20px;
+                margin-bottom: 20px;
+            }
+
+            .role-hidden {
+                font-size: 2rem;
+            }
+
+            .role-revealed {
+                font-size: 2rem;
+            }
+        }
+
         /* Task Timer */
         .task-timer {
             text-align: center;
-            padding: 40px;
+            padding: 25px;
             background: rgba(94, 179, 246, 0.2);
-            border-radius: 15px;
-            margin: 20px 0;
+            border-radius: 12px;
+            margin: 15px 0;
         }
 
         .timer-display {
-            font-size: 4rem;
+            font-size: 2.75rem;
             font-weight: 700;
             color: #5eb3f6;
-            margin: 20px 0;
+            margin: 15px 0;
         }
 
         .timer-task-name {
-            font-size: 1.5rem;
+            font-size: 1.15rem;
             color: #ddd;
-            margin-bottom: 15px;
+            margin-bottom: 12px;
+        }
+
+        /* Desktop timer sizing */
+        @media (min-width: 768px) {
+            .task-timer {
+                padding: 40px;
+                border-radius: 15px;
+                margin: 20px 0;
+            }
+
+            .timer-display {
+                font-size: 4rem;
+                margin: 20px 0;
+            }
+
+            .timer-task-name {
+                font-size: 1.5rem;
+                margin-bottom: 15px;
+            }
         }
 
         /* QR Code Display */
         .qr-display {
             text-align: center;
-            padding: 30px;
+            padding: 20px;
             background: rgba(255, 255, 255, 0.1);
-            border-radius: 15px;
+            border-radius: 12px;
         }
 
         .qr-placeholder {
-            width: 200px;
-            height: 200px;
+            width: 180px;
+            height: 180px;
             background: white;
-            margin: 20px auto;
+            margin: 15px auto;
             border-radius: 10px;
             display: flex;
             align-items: center;
             justify-content: center;
             color: #333;
+        }
+
+        /* Desktop QR sizing */
+        @media (min-width: 768px) {
+            .qr-display {
+                padding: 30px;
+                border-radius: 15px;
+            }
+
+            .qr-placeholder {
+                width: 200px;
+                height: 200px;
+                margin: 20px auto;
+            }
         }
 
         /* Meeting Overlay */
@@ -427,14 +706,26 @@
         .meeting-content {
             text-align: center;
             max-width: 600px;
-            padding: 40px;
+            padding: 25px;
         }
 
         .meeting-content h2 {
-            font-size: 3rem;
+            font-size: 2rem;
             color: #fff;
-            margin-bottom: 20px;
+            margin-bottom: 15px;
             animation: shake 0.5s infinite;
+        }
+
+        /* Desktop meeting content */
+        @media (min-width: 768px) {
+            .meeting-content {
+                padding: 40px;
+            }
+
+            .meeting-content h2 {
+                font-size: 3rem;
+                margin-bottom: 20px;
+            }
         }
 
         @keyframes shake {
@@ -504,14 +795,15 @@
             justify-content: center;
             align-items: center;
             z-index: 999;
-            padding: 20px;
+            padding: 15px;
         }
 
         .modal-content {
             background: #1a1a2e;
-            border-radius: 15px;
-            padding: 30px;
+            border-radius: 12px;
+            padding: 20px;
             max-width: 800px;
+            width: 100%;
             max-height: 90vh;
             overflow-y: auto;
             border: 2px solid rgba(94, 179, 246, 0.3);
@@ -521,27 +813,50 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 20px;
+            margin-bottom: 15px;
         }
 
         .modal-close {
             background: none;
             border: none;
             color: #fff;
-            font-size: 2rem;
+            font-size: 1.75rem;
             cursor: pointer;
             padding: 0;
-            width: 40px;
-            height: 40px;
+            width: 44px;
+            height: 44px;
+            min-height: 44px;
+        }
+
+        /* Desktop modal sizing */
+        @media (min-width: 768px) {
+            .modal {
+                padding: 20px;
+            }
+
+            .modal-content {
+                border-radius: 15px;
+                padding: 30px;
+            }
+
+            .modal-header {
+                margin-bottom: 20px;
+            }
+
+            .modal-close {
+                font-size: 2rem;
+                width: 40px;
+                height: 40px;
+            }
         }
 
         /* Victory/Defeat Screen */
         .end-screen {
             text-align: center;
-            padding: 40px;
+            padding: 25px;
             background: rgba(255, 255, 255, 0.1);
-            border-radius: 15px;
-            margin-bottom: 20px;
+            border-radius: 12px;
+            margin-bottom: 15px;
         }
 
         .victory {
@@ -555,8 +870,8 @@
         }
 
         .end-screen h2 {
-            font-size: 3rem;
-            margin-bottom: 20px;
+            font-size: 2rem;
+            margin-bottom: 15px;
         }
 
         .victory h2 {
@@ -567,21 +882,100 @@
             color: #ff3838;
         }
 
-        @media (max-width: 768px) {
-            h1 {
-                font-size: 2rem;
+        /* Desktop end screen sizing */
+        @media (min-width: 768px) {
+            .end-screen {
+                padding: 40px;
+                border-radius: 15px;
+                margin-bottom: 20px;
             }
 
+            .end-screen h2 {
+                font-size: 3rem;
+                margin-bottom: 20px;
+            }
+        }
+
+        /* Additional mobile-specific improvements */
+        @media (max-width: 767px) {
+            /* Stack input rows vertically */
             .input-row {
                 flex-direction: column;
+                gap: 0;
             }
 
+            /* Improve touch target for checkboxes */
+            .room-checkbox,
+            .task-item input[type="checkbox"] {
+                width: 24px;
+                height: 24px;
+                min-width: 24px;
+                min-height: 24px;
+            }
+
+            /* Better spacing for task items */
+            .task-item {
+                padding: 12px;
+                gap: 10px;
+            }
+
+            .task-list {
+                margin-left: 15px;
+            }
+
+            /* Improve room section on mobile */
+            .room-section {
+                padding: 12px;
+                margin-bottom: 12px;
+            }
+
+            .room-header {
+                gap: 12px;
+            }
+
+            /* Better vote option touch targets */
+            .vote-option {
+                padding: 18px;
+                margin-bottom: 12px;
+                min-height: 56px;
+            }
+
+            /* Player badge improvements */
+            .player-badge {
+                padding: 14px 16px;
+                font-size: 1rem;
+            }
+
+            /* Collapsible section improvements */
+            .collapsible {
+                padding: 14px;
+            }
+
+            /* Improve small text readability */
+            small {
+                font-size: 0.85rem !important;
+            }
+        }
+
+        /* Landscape mobile optimization */
+        @media (max-width: 767px) and (orientation: landscape) {
             .timer-display {
-                font-size: 3rem;
+                font-size: 2rem;
             }
 
-            .meeting-content h2 {
-                font-size: 2rem;
+            .task-timer {
+                padding: 15px;
+            }
+
+            .end-screen h2 {
+                font-size: 1.5rem;
+            }
+        }
+
+        /* Prevent text size adjustment on iOS */
+        @supports (-webkit-touch-callout: none) {
+            body {
+                -webkit-text-size-adjust: 100%;
             }
         }
     </style>
@@ -1750,8 +2144,8 @@
             roomHeader.className = 'room-header';
             roomHeader.innerHTML = `
                 <input type="checkbox" class="room-checkbox" id="room-${roomName}" onchange="toggleRoom('${roomName}')" ${gameState.settings.selectedRooms[roomName].enabled ? 'checked' : ''}>
-                <label for="room-${roomName}" style="font-weight: 600; font-size: 1.1rem;">${roomName}</label>
-                <button onclick="deleteRoom('${roomName}')" style="background: #ff3838; color: white; border: none; padding: 4px 10px; border-radius: 4px; cursor: pointer; margin-left: auto; font-size: 0.9rem;">🗑️ Delete</button>
+                <label for="room-${roomName}">${roomName}</label>
+                <button onclick="deleteRoom('${roomName}')" class="btn-danger btn-small" style="margin-left: auto;">🗑️ Delete</button>
             `;
 
             const taskList = document.createElement('ul');
@@ -1764,11 +2158,9 @@
 
             // Add "Add Task" button
             const addTaskBtn = document.createElement('button');
-            addTaskBtn.className = 'btn-primary';
-            addTaskBtn.style.marginTop = '10px';
+            addTaskBtn.className = 'btn-primary btn-small';
+            addTaskBtn.style.marginTop = '12px';
             addTaskBtn.style.marginLeft = '30px';
-            addTaskBtn.style.padding = '8px 15px';
-            addTaskBtn.style.fontSize = '0.9rem';
             addTaskBtn.innerHTML = '➕ Add Task';
             addTaskBtn.onclick = () => showAddTaskModal(roomName);
 
@@ -1793,17 +2185,11 @@
             const isRoomDisabled = !gameState.settings.selectedRooms[roomName].enabled;
 
             taskItem.innerHTML = `
-                <div style="display: flex; align-items: flex-start; gap: 10px; flex: 1;">
-                    <input type="checkbox" id="task-${roomName}-${taskIndex}" ${task.enabled ? 'checked' : ''} ${isRoomDisabled ? 'disabled' : ''} onchange="toggleTaskEnabled('${roomName}', ${taskIndex})" class="task-enable-checkbox">
-                    <label for="task-${roomName}-${taskIndex}" style="flex: 1;" id="task-label-${roomName}-${taskIndex}">${task.name}</label>
-                </div>
-                <div style="display: flex; align-items: center; gap: 5px;">
-                    <button onclick="editTask('${roomName}', ${taskIndex})" style="background: #5eb3f6; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 0.85rem;">✏️</button>
-                    <button onclick="deleteTask('${roomName}', ${taskIndex})" style="background: #ff3838; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 0.85rem;">🗑️</button>
-                </div>
-                <div class="unique-control" style="display: none; align-items: center; gap: 5px;">
-                    <input type="checkbox" id="unique-${roomName}-${taskIndex}" ${task.unique ? 'checked' : ''} onchange="toggleTaskUnique('${roomName}', ${taskIndex})" style="width: 16px; height: 16px;">
-                    <label for="unique-${roomName}-${taskIndex}" style="font-size: 0.85rem; color: #ff9800; white-space: nowrap; cursor: pointer;">Unique</label>
+                <input type="checkbox" id="task-${roomName}-${taskIndex}" ${task.enabled ? 'checked' : ''} ${isRoomDisabled ? 'disabled' : ''} onchange="toggleTaskEnabled('${roomName}', ${taskIndex})" class="task-enable-checkbox">
+                <label for="task-${roomName}-${taskIndex}" id="task-label-${roomName}-${taskIndex}">${task.name}</label>
+                <div style="display: flex; align-items: center; gap: 6px; margin-left: auto;">
+                    <button onclick="editTask('${roomName}', ${taskIndex})" class="btn-primary btn-small" style="padding: 6px 10px; min-height: 32px;">✏️</button>
+                    <button onclick="deleteTask('${roomName}', ${taskIndex})" class="btn-danger btn-small" style="padding: 6px 10px; min-height: 32px;">🗑️</button>
                 </div>
             `;
 
