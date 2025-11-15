@@ -2,3 +2,5 @@
 node_modules/
 *.log
 .env
+index.html.backup
+test-load.html

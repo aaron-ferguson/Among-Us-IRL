@@ -1,0 +1,1097 @@
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: #fff;
+            min-height: 100vh;
+            padding: 15px;
+        }
+
+        /* Mobile-first: reduce padding on small screens */
+        @media (min-width: 768px) {
+            body {
+                padding: 20px;
+            }
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        h1 {
+            font-size: 1.75rem;
+            color: #ff3838;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            color: #a0a0a0;
+            font-size: 0.95rem;
+        }
+
+        /* Larger headers on desktop */
+        @media (min-width: 768px) {
+            header {
+                margin-bottom: 30px;
+            }
+
+            h1 {
+                font-size: 2.5rem;
+            }
+
+            .subtitle {
+                font-size: 1.1rem;
+            }
+        }
+
+        .card {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            padding: 18px;
+            margin-bottom: 15px;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+        }
+
+        .card h2 {
+            margin-bottom: 15px;
+            color: #5eb3f6;
+            font-size: 1.25rem;
+        }
+
+        .card h3 {
+            margin: 15px 0 12px 0;
+            color: #5eb3f6;
+            font-size: 1.1rem;
+        }
+
+        /* Desktop card styling */
+        @media (min-width: 768px) {
+            .card {
+                border-radius: 15px;
+                padding: 25px;
+                margin-bottom: 20px;
+            }
+
+            .card h2 {
+                margin-bottom: 20px;
+                font-size: 1.5rem;
+            }
+
+            .card h3 {
+                margin: 20px 0 15px 0;
+                font-size: 1.2rem;
+            }
+        }
+
+        .input-group {
+            margin-bottom: 15px;
+        }
+
+        .input-row {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .input-row .input-group {
+            flex: 1;
+            margin-bottom: 0;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #ddd;
+            font-weight: 500;
+        }
+
+        input[type="text"],
+        input[type="number"],
+        textarea,
+        select {
+            width: 100%;
+            padding: 14px;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.05);
+            color: #fff;
+            font-size: 16px; /* Prevents zoom on iOS */
+            transition: all 0.3s;
+            -webkit-appearance: none;
+            appearance: none;
+        }
+
+        /* Desktop input sizing */
+        @media (min-width: 768px) {
+            input[type="text"],
+            input[type="number"],
+            textarea,
+            select {
+                padding: 12px;
+                font-size: 1rem;
+            }
+        }
+
+        input[type="text"]:focus,
+        input[type="number"]:focus,
+        textarea:focus,
+        select:focus {
+            outline: none;
+            border-color: #5eb3f6;
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        select option {
+            background: #16213e;
+            color: #fff;
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        button {
+            padding: 14px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            min-height: 48px; /* Touch-friendly minimum */
+            touch-action: manipulation; /* Prevents double-tap zoom */
+        }
+
+        /* Desktop button sizing */
+        @media (min-width: 768px) {
+            button {
+                padding: 12px 30px;
+                font-size: 1rem;
+                letter-spacing: 1px;
+            }
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #5eb3f6 0%, #4a9ddb 100%);
+            color: #fff;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(94, 179, 246, 0.4);
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #ff3838 0%, #d32f2f 100%);
+            color: #fff;
+        }
+
+        .btn-danger:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(255, 56, 56, 0.4);
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #4caf50 0%, #388e3c 100%);
+            color: #fff;
+        }
+
+        .btn-success:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(76, 175, 80, 0.4);
+        }
+
+        /* Disabled button styling */
+        button:disabled,
+        button[disabled] {
+            opacity: 0.5;
+            cursor: not-allowed !important;
+            background: #cccccc !important;
+            transform: none !important;
+            box-shadow: none !important;
+        }
+
+        button:disabled:hover,
+        button[disabled]:hover {
+            transform: none !important;
+            box-shadow: none !important;
+        }
+
+        .btn-warning {
+            background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%);
+            color: #fff;
+        }
+
+        .btn-secondary {
+            background: linear-gradient(135deg, #6c757d 0%, #5a6268 100%);
+            color: #fff;
+        }
+
+        .btn-secondary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(108, 117, 125, 0.4);
+        }
+
+        .btn-block {
+            width: 100%;
+            margin-top: 10px;
+        }
+
+        /* Small action buttons for room/task management */
+        .btn-small {
+            padding: 6px 12px;
+            font-size: 0.85rem;
+            min-height: 36px;
+            letter-spacing: 0.3px;
+        }
+
+        .btn-icon {
+            padding: 8px 14px;
+            font-size: 0.9rem;
+            min-height: 40px;
+        }
+
+        /* Mobile: slightly larger touch targets for small buttons */
+        @media (max-width: 767px) {
+            .btn-small {
+                padding: 8px 14px;
+                font-size: 0.9rem;
+                min-height: 40px;
+            }
+
+            .btn-icon {
+                padding: 10px 16px;
+                font-size: 0.95rem;
+                min-height: 44px;
+            }
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        /* Edit Mode Toggle */
+        .edit-mode-toggle {
+            display: flex;
+            justify-content: flex-end;
+            margin-bottom: 12px;
+            padding: 0 10px;
+        }
+
+        .edit-mode-btn {
+            padding: 10px 20px;
+            font-size: 0.9rem;
+            min-height: 40px;
+        }
+
+        .edit-mode-btn.active {
+            background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%);
+        }
+
+        /* Room/Task Selection */
+        .room-section {
+            background: rgba(255, 255, 255, 0.08);
+            padding: 16px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: background 0.2s ease;
+        }
+
+        .room-section:hover {
+            background: rgba(255, 255, 255, 0.12);
+        }
+
+        /* Drag and drop styles */
+        .room-section.drag-over {
+            background: rgba(94, 179, 246, 0.2);
+            border: 2px dashed #5eb3f6;
+        }
+
+        .task-item.dragging {
+            opacity: 0.5;
+            cursor: move;
+        }
+
+        .task-item.drag-over {
+            border-top: 3px solid #5eb3f6;
+        }
+
+        .task-item[draggable="true"] {
+            cursor: move;
+        }
+
+        .room-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+
+        .room-header label {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #5eb3f6;
+            margin: 0;
+            flex: 1;
+            min-width: 0;
+            word-break: break-word;
+        }
+
+        .room-checkbox {
+            width: 22px;
+            height: 22px;
+            min-width: 22px;
+            min-height: 22px;
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+
+        .task-list {
+            list-style: none;
+            margin-left: 30px;
+            margin-top: 10px;
+        }
+
+        /* Swipe container for task items */
+        .task-item-wrapper {
+            position: relative;
+            margin-bottom: 8px;
+            overflow: hidden; /* Hides delete button until swiped */
+            border-radius: 6px;
+            background: rgba(255, 255, 255, 0.05); /* Background stays in place */
+        }
+
+        .task-item {
+            padding: 12px;
+            background: rgba(255, 255, 255, 0.05); /* Item background covers delete button */
+            border-radius: 6px;
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            position: relative;
+            transition: transform 0.3s ease, background 0.2s ease;
+            touch-action: pan-y;
+            z-index: 2; /* Above delete button */
+            width: 100%; /* Full width to cover delete button */
+        }
+
+        .task-item:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .task-item.swiped {
+            transform: translateX(-80px); /* Slides left to reveal delete */
+        }
+
+        .task-item input[type="checkbox"] {
+            margin-top: 2px;
+            width: 20px;
+            height: 20px;
+            min-width: 20px;
+            min-height: 20px;
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+
+        .task-item label {
+            flex: 1;
+            margin: 0;
+            cursor: pointer;
+            font-size: 1rem;
+            line-height: 1.5;
+            word-break: break-word;
+        }
+
+        /* Delete button revealed by swipe - hidden by default */
+        .task-delete-reveal {
+            position: absolute;
+            top: 0;
+            right: 0;
+            bottom: 0;
+            width: 80px;
+            height: 100%;
+            background: linear-gradient(135deg, #ff3838 0%, #d32f2f 100%);
+            display: none; /* Hidden unless in edit mode on mobile */
+            align-items: center;
+            justify-content: center;
+            z-index: 1; /* Behind task item (z-index: 2) */
+            cursor: pointer;
+            border-radius: 6px;
+        }
+
+        /* Only show swipe delete on mobile in edit mode */
+        .edit-mode.mobile .task-delete-reveal {
+            display: flex;
+        }
+
+        .task-delete-reveal:active {
+            background: linear-gradient(135deg, #d32f2f 0%, #b71c1c 100%);
+        }
+
+        .task-delete-icon {
+            font-size: 1.5rem;
+            color: white;
+        }
+
+        /* Desktop delete buttons - visible in edit mode */
+        .task-delete-btn-desktop {
+            display: none;
+            margin-left: auto;
+        }
+
+        .edit-mode.desktop .task-delete-btn-desktop {
+            display: block;
+        }
+
+        /* Room delete button - hidden by default, shown in edit mode */
+        .room-delete-btn {
+            display: none;
+            margin-left: auto;
+        }
+
+        .edit-mode .room-delete-btn {
+            display: block;
+        }
+
+        /* Add Task button - hidden by default, shown in edit mode */
+        .add-task-btn {
+            display: none;
+            margin-top: 12px;
+            margin-left: 30px;
+        }
+
+        .edit-mode .add-task-btn {
+            display: inline-block;
+        }
+
+        /* Add Room button - hidden by default, shown in edit mode */
+        #add-room-btn {
+            display: none;
+            margin-top: 15px;
+        }
+
+        .edit-mode #add-room-btn {
+            display: inline-block;
+        }
+
+        /* Container for rooms and tasks with proper padding */
+        #rooms-tasks-container {
+            padding: 15px 10px 10px 10px;
+        }
+
+        /* Desktop: more spacious layout */
+        @media (min-width: 768px) {
+            .room-section {
+                padding: 18px;
+                margin-bottom: 18px;
+            }
+
+            .room-header {
+                margin-bottom: 16px;
+            }
+
+            .task-list {
+                margin-left: 35px;
+            }
+
+            #rooms-tasks-container {
+                padding: 18px 12px 12px 12px;
+            }
+        }
+
+        /* Collapsible Section */
+        .collapsible {
+            background: rgba(94, 179, 246, 0.2);
+            cursor: pointer;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 10px;
+            border: 2px solid rgba(94, 179, 246, 0.3);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            user-select: none;
+        }
+
+        .collapsible:hover {
+            background: rgba(94, 179, 246, 0.3);
+        }
+
+        .collapsible-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease-out;
+        }
+
+        .collapsible-content.active {
+            max-height: 70vh; /* Mobile-friendly: 70% of viewport height */
+            overflow-y: auto;
+            overflow-x: hidden;
+            transition: max-height 0.5s ease-in;
+            /* Smooth scrolling on iOS */
+            -webkit-overflow-scrolling: touch;
+            /* Better scrollbar styling */
+            scrollbar-width: thin;
+            scrollbar-color: rgba(94, 179, 246, 0.6) rgba(255, 255, 255, 0.1);
+            /* Add subtle gradient at bottom to indicate scrollability */
+            position: relative;
+            padding-bottom: 8px;
+        }
+
+        /* Scroll indicator gradient */
+        .collapsible-content.active::after {
+            content: '';
+            position: sticky;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 30px;
+            background: linear-gradient(to bottom, transparent, rgba(26, 26, 46, 0.8));
+            pointer-events: none;
+            display: block;
+            margin-top: -30px;
+        }
+
+        /* Webkit scrollbar styling for rooms/tasks section */
+        .collapsible-content.active::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .collapsible-content.active::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+        }
+
+        .collapsible-content.active::-webkit-scrollbar-thumb {
+            background: rgba(94, 179, 246, 0.6);
+            border-radius: 10px;
+        }
+
+        .collapsible-content.active::-webkit-scrollbar-thumb:hover {
+            background: rgba(94, 179, 246, 0.8);
+        }
+
+        /* Desktop: larger max-height */
+        @media (min-width: 768px) {
+            .collapsible-content.active {
+                max-height: 600px;
+            }
+        }
+
+        /* Game Stats */
+        .game-stats {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .stat-box {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 15px 20px;
+            border-radius: 10px;
+            text-align: center;
+            width: 100%;
+        }
+
+        .stat-number {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: #5eb3f6;
+        }
+
+        .stat-label {
+            color: #a0a0a0;
+            font-size: 0.85rem;
+            margin-top: 5px;
+        }
+
+        /* Desktop stats layout */
+        @media (min-width: 768px) {
+            .game-stats {
+                flex-direction: row;
+                justify-content: space-around;
+                flex-wrap: wrap;
+                gap: 15px;
+                margin-bottom: 20px;
+            }
+
+            .stat-box {
+                flex: 1;
+                min-width: 150px;
+                padding: 15px 25px;
+            }
+
+            .stat-number {
+                font-size: 2rem;
+            }
+
+            .stat-label {
+                font-size: 0.9rem;
+            }
+        }
+
+        /* Player Badges */
+        .player-badge {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 12px 20px;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            font-size: 1.1rem;
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .player-ready {
+            border-color: #4caf50;
+        }
+
+        .ready-indicator {
+            background: #4caf50;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.85rem;
+        }
+
+        /* Role Display */
+        .role-display {
+            text-align: center;
+            padding: 18px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            margin-bottom: 15px;
+        }
+
+        .role-hidden {
+            font-size: 1.5rem;
+            letter-spacing: 5px;
+            color: #666;
+            user-select: none;
+        }
+
+        .role-revealed {
+            font-size: 1.5rem;
+            font-weight: 700;
+        }
+
+        .role-imposter {
+            color: #ff3838;
+        }
+
+        .role-crewmate {
+            color: #5eb3f6;
+        }
+
+        /* Desktop role display */
+        @media (min-width: 768px) {
+            .role-display {
+                padding: 20px;
+                margin-bottom: 20px;
+            }
+
+            .role-hidden {
+                font-size: 2rem;
+            }
+
+            .role-revealed {
+                font-size: 2rem;
+            }
+        }
+
+        /* Task Timer */
+        .task-timer {
+            text-align: center;
+            padding: 25px;
+            background: rgba(94, 179, 246, 0.2);
+            border-radius: 12px;
+            margin: 15px 0;
+        }
+
+        .timer-display {
+            font-size: 2.75rem;
+            font-weight: 700;
+            color: #5eb3f6;
+            margin: 15px 0;
+        }
+
+        .timer-task-name {
+            font-size: 1.15rem;
+            color: #ddd;
+            margin-bottom: 12px;
+        }
+
+        /* Desktop timer sizing */
+        @media (min-width: 768px) {
+            .task-timer {
+                padding: 40px;
+                border-radius: 15px;
+                margin: 20px 0;
+            }
+
+            .timer-display {
+                font-size: 4rem;
+                margin: 20px 0;
+            }
+
+            .timer-task-name {
+                font-size: 1.5rem;
+                margin-bottom: 15px;
+            }
+        }
+
+        /* QR Code Display */
+        .qr-display {
+            text-align: center;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+        }
+
+        .qr-placeholder {
+            width: 180px;
+            height: 180px;
+            background: white;
+            margin: 15px auto;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #333;
+        }
+
+        /* Desktop QR sizing */
+        @media (min-width: 768px) {
+            .qr-display {
+                padding: 30px;
+                border-radius: 15px;
+            }
+
+            .qr-placeholder {
+                width: 200px;
+                height: 200px;
+                margin: 20px auto;
+            }
+        }
+
+        /* Meeting Overlay */
+        .meeting-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 0, 0, 0.95);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            animation: flashRed 0.5s infinite;
+        }
+
+        @keyframes flashRed {
+            0%, 100% {
+                background: rgba(255, 0, 0, 0.95);
+            }
+            50% {
+                background: rgba(200, 0, 0, 0.95);
+            }
+        }
+
+        .meeting-content {
+            text-align: center;
+            max-width: 600px;
+            padding: 25px;
+        }
+
+        .meeting-content h2 {
+            font-size: 2rem;
+            color: #fff;
+            margin-bottom: 15px;
+            animation: shake 0.5s infinite;
+        }
+
+        /* Desktop meeting content */
+        @media (min-width: 768px) {
+            .meeting-content {
+                padding: 40px;
+            }
+
+            .meeting-content h2 {
+                font-size: 3rem;
+                margin-bottom: 20px;
+            }
+        }
+
+        @keyframes shake {
+            0%, 100% {
+                transform: translateX(0);
+            }
+            25% {
+                transform: translateX(-10px);
+            }
+            75% {
+                transform: translateX(10px);
+            }
+        }
+
+        /* Voting Interface */
+        .vote-option {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: all 0.3s;
+        }
+
+        .vote-option:hover {
+            background: rgba(255, 255, 255, 0.2);
+            border-color: #5eb3f6;
+        }
+
+        .vote-option.selected {
+            background: rgba(94, 179, 246, 0.3);
+            border-color: #5eb3f6;
+        }
+
+        .vote-results {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 10px;
+        }
+
+        .vote-bar {
+            background: rgba(94, 179, 246, 0.3);
+            height: 30px;
+            border-radius: 5px;
+            position: relative;
+            margin-top: 10px;
+        }
+
+        .vote-bar-fill {
+            background: #5eb3f6;
+            height: 100%;
+            border-radius: 5px;
+            transition: width 0.5s;
+        }
+
+        /* Modal */
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 999;
+            padding: 15px;
+        }
+
+        .modal-content {
+            background: #1a1a2e;
+            border-radius: 12px;
+            padding: 20px;
+            max-width: 800px;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+            border: 2px solid rgba(94, 179, 246, 0.3);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            color: #fff;
+            font-size: 1.75rem;
+            cursor: pointer;
+            padding: 0;
+            width: 44px;
+            height: 44px;
+            min-height: 44px;
+        }
+
+        /* Desktop modal sizing */
+        @media (min-width: 768px) {
+            .modal {
+                padding: 20px;
+            }
+
+            .modal-content {
+                border-radius: 15px;
+                padding: 30px;
+            }
+
+            .modal-header {
+                margin-bottom: 20px;
+            }
+
+            .modal-close {
+                font-size: 2rem;
+                width: 40px;
+                height: 40px;
+            }
+        }
+
+        /* Victory/Defeat Screen */
+        .end-screen {
+            text-align: center;
+            padding: 25px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            margin-bottom: 15px;
+        }
+
+        .victory {
+            background: rgba(76, 175, 80, 0.2);
+            border: 3px solid #4caf50;
+        }
+
+        .defeat {
+            background: rgba(255, 56, 56, 0.2);
+            border: 3px solid #ff3838;
+        }
+
+        .end-screen h2 {
+            font-size: 2rem;
+            margin-bottom: 15px;
+        }
+
+        .victory h2 {
+            color: #4caf50;
+        }
+
+        .defeat h2 {
+            color: #ff3838;
+        }
+
+        /* Desktop end screen sizing */
+        @media (min-width: 768px) {
+            .end-screen {
+                padding: 40px;
+                border-radius: 15px;
+                margin-bottom: 20px;
+            }
+
+            .end-screen h2 {
+                font-size: 3rem;
+                margin-bottom: 20px;
+            }
+        }
+
+        /* Additional mobile-specific improvements */
+        @media (max-width: 767px) {
+            /* Stack input rows vertically */
+            .input-row {
+                flex-direction: column;
+                gap: 0;
+            }
+
+            /* Improve touch target for checkboxes */
+            .room-checkbox,
+            .task-item input[type="checkbox"] {
+                width: 24px;
+                height: 24px;
+                min-width: 24px;
+                min-height: 24px;
+            }
+
+            /* Better spacing for task items */
+            .task-item {
+                padding: 12px;
+                gap: 10px;
+            }
+
+            .task-list {
+                margin-left: 15px;
+            }
+
+            /* Improve room section on mobile */
+            .room-section {
+                padding: 12px;
+                margin-bottom: 12px;
+            }
+
+            .room-header {
+                gap: 12px;
+            }
+
+            /* Better vote option touch targets */
+            .vote-option {
+                padding: 18px;
+                margin-bottom: 12px;
+                min-height: 56px;
+            }
+
+            /* Player badge improvements */
+            .player-badge {
+                padding: 14px 16px;
+                font-size: 1rem;
+            }
+
+            /* Collapsible section improvements */
+            .collapsible {
+                padding: 14px;
+            }
+
+            /* Improve small text readability */
+            small {
+                font-size: 0.85rem !important;
+            }
+        }
+
+        /* Landscape mobile optimization */
+        @media (max-width: 767px) and (orientation: landscape) {
+            .timer-display {
+                font-size: 2rem;
+            }
+
+            .task-timer {
+                padding: 15px;
+            }
+
+            .end-screen h2 {
+                font-size: 1.5rem;
+            }
+        }
+
+        /* Prevent text size adjustment on iOS */
+        @supports (-webkit-touch-callout: none) {
+            body {
+                -webkit-text-size-adjust: 100%;
+            }
+        }
+    </style>
