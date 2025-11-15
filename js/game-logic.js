@@ -1172,6 +1172,7 @@ resumeBtn.classList.remove('hidden');
 waitingMsg.classList.add('hidden');
 } else {
 resumeBtn.classList.add('hidden');
+waitingMsg.textContent = 'Waiting for host to resume the game...';
 waitingMsg.classList.remove('hidden');
 }
 }
@@ -1206,11 +1207,19 @@ ejectedText.textContent = `${eliminatedPlayer} was ejected. They were ${role ===
 ejectedText.textContent = 'No one was ejected.';
 }
 
-// Initially hide resume button for everyone (will show for host after tallying)
+// Show appropriate message/button based on host status
 const resumeBtn = document.getElementById('resume-game-btn');
 const waitingMsg = document.getElementById('waiting-for-host-resume');
+
+// Initially hide both (will be shown by tallyVotes when game doesn't end)
 resumeBtn.classList.add('hidden');
 waitingMsg.classList.add('hidden');
+
+// For non-hosts, show waiting message immediately
+if (!isHost()) {
+waitingMsg.textContent = 'Waiting for host to resume the game...';
+waitingMsg.classList.remove('hidden');
+}
 }
 
 function checkWinConditions() {
@@ -1250,6 +1259,12 @@ return null;
 }
 
 function resumeGame() {
+// Only host can resume the game
+if (!isHost()) {
+alert('Only the host can resume the game!');
+return;
+}
+
 document.getElementById('meeting-phase').classList.add('hidden');
 document.getElementById('game-phase').classList.remove('hidden');
 gameState.stage = 'playing';
