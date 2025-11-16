@@ -979,6 +979,7 @@ function hostStartVoting() {
 gameState.votingStarted = true;
 gameState.votes = {};
 gameState.votesTallied = false; // Reset for new voting session
+gameState.settings.voteResults = null; // Clear old vote results from previous meeting
 
 // Sync to database to notify all players
 if (supabaseClient && currentGameId) {

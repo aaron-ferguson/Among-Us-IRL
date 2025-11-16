@@ -290,7 +290,8 @@ const totalPlayers = gameState.players.length;
 const votesSubmitted = Object.keys(gameState.votes).length;
 
 // Check if host has sent vote results - display them for non-host players
-if (!isHost() && newData.settings && newData.settings.voteResults) {
+// IMPORTANT: Only display if votes have been tallied (prevents showing old results)
+if (!isHost() && newData.settings && newData.settings.voteResults && gameState.votesTallied) {
 console.log('Non-host: Displaying vote results from host');
 const { voteCounts, eliminatedPlayer, isTie } = newData.settings.voteResults;
 displayVoteResults(voteCounts, eliminatedPlayer, isTie);
