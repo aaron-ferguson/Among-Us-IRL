@@ -978,6 +978,7 @@ function hostStartVoting() {
 // Host initiates voting - update game state
 gameState.votingStarted = true;
 gameState.votes = {};
+gameState.votesTallied = false; // Reset for new voting session
 
 // Sync to database to notify all players
 if (supabaseClient && currentGameId) {
@@ -1061,13 +1062,23 @@ document.getElementById('vote-timer').textContent = timeLeft;
 
 if (timeLeft <= 0) {
 clearInterval(interval);
+console.log('=== VOTING TIMER EXPIRED ===');
+console.log('Current selectedVote:', selectedVote);
+console.log('myPlayerName:', myPlayerName);
 // Auto-skip if no vote selected
 if (!selectedVote) {
 selectedVote = 'skip';
+console.log('No vote selected - auto-setting to skip');
 }
 // Disable button to prevent double-submit
 document.getElementById('submit-vote-btn').disabled = true;
-submitVote();
+// Submit vote (async - will update database and trigger vote tallying)
+console.log('Calling submitVote() for timeout with vote:', selectedVote);
+submitVote().then(() => {
+console.log('✓ Timeout vote submitted successfully');
+}).catch(err => {
+console.error('✗ Error submitting timeout vote:', err);
+});
 }
 }, 1000);
 }
@@ -1084,46 +1095,106 @@ submitBtn.disabled = false;
 }
 
 async function submitVote() {
+console.log('=== SUBMIT VOTE CALLED ===');
+console.log('myPlayerName:', myPlayerName);
+console.log('selectedVote:', selectedVote);
+console.log('Current gameState.votes:', gameState.votes);
+
 // Disable submit button to prevent double-voting
 document.getElementById('submit-vote-btn').disabled = true;
 
-// Record this player's vote
-if (!gameState.votes) {
-gameState.votes = {};
+// Record this player's vote using atomic database operation with retry
+console.log('Recording vote:', selectedVote || 'skip', 'for player:', myPlayerName);
+
+if (supabaseClient && currentGameId) {
+const voteValue = selectedVote || 'skip';
+let retries = 0;
+const maxRetries = 5;
+
+while (retries < maxRetries) {
+try {
+console.log(`Attempt ${retries + 1}/${maxRetries}: Submitting vote to database...`);
+
+// Fetch current settings
+const { data: currentGame, error: fetchError } = await supabaseClient
+.from('games')
+.select('settings')
+.eq('id', currentGameId)
+.single();
+
+if (fetchError) throw fetchError;
+
+// Check if our vote is already recorded
+const existingVotes = currentGame.settings.votes || {};
+if (existingVotes[myPlayerName] === voteValue) {
+console.log('✓ Vote already recorded in database');
+break;
 }
 
-gameState.votes[myPlayerName] = selectedVote || 'skip';
+// Merge our vote into settings
+const updatedSettings = {
+...currentGame.settings,
+votes: {
+...existingVotes,
+[myPlayerName]: voteValue
+}
+};
 
-// Sync vote to database
-if (supabaseClient && currentGameId) {
-await updateGameInDB();
+// Update database
+const { error: updateError } = await supabaseClient
+.from('games')
+.update({ settings: updatedSettings })
+.eq('id', currentGameId);
+
+if (updateError) throw updateError;
+
+// Verify vote was recorded
+await new Promise(resolve => setTimeout(resolve, 100)); // Wait 100ms for sync
+const { data: verifyGame } = await supabaseClient
+.from('games')
+.select('settings')
+.eq('id', currentGameId)
+.single();
+
+if (verifyGame?.settings?.votes?.[myPlayerName] === voteValue) {
+console.log('✓ Vote verified in database');
+break;
+} else {
+console.warn(`Vote not verified, retrying... (attempt ${retries + 1})`);
+retries++;
+}
+} catch (err) {
+console.error(`✗ Error on attempt ${retries + 1}:`, err);
+retries++;
+await new Promise(resolve => setTimeout(resolve, 200)); // Wait before retry
+}
+}
+
+if (retries >= maxRetries) {
+console.error('✗ Failed to record vote after max retries');
+}
+} else {
+// Offline mode - just update local state
+if (!gameState.votes) gameState.votes = {};
+gameState.votes[myPlayerName] = selectedVote || 'skip';
+console.warn('No supabase client - vote only recorded locally');
 }
 
 // Show waiting screen for this player
 document.getElementById('voting-phase').classList.add('hidden');
 document.getElementById('vote-results').classList.remove('hidden');
 
-const totalPlayers = gameState.players.length;
-const votesSubmitted = Object.keys(gameState.votes).length;
-
+// Show "Processing vote..." message instead of count
+// The actual vote count will be updated by subscribeToGame() callback when database syncs
+if (!gameState.votesTallied) {
 document.getElementById('results-display').innerHTML = `
-<p style="color: #a0a0a0;">Votes submitted: ${votesSubmitted}/${totalPlayers}</p>
-<p style="color: #5eb3f6;">Waiting for all players to vote...</p>
+<p style="color: #5eb3f6;">Processing your vote...</p>
+<p style="color: #a0a0a0;">Waiting for other players...</p>
 `;
-
-// Only host tallies votes, and only when ALL players have voted
-if (!isHost()) {
-return;
 }
 
-// Check if all players have voted
-if (votesSubmitted < totalPlayers) {
-// Not all votes in yet, wait
-return;
-}
-
-// All votes are in! Tally them
-await tallyVotes();
+// Note: Vote tallying is handled by subscribeToGame() callback when all votes are in
+// This prevents race conditions from checking local state before database sync completes
 }
 
 async function tallyVotes() {
@@ -1178,10 +1249,17 @@ await updatePlayerInDB(eliminatedPlayer, { alive: false });
 }
 }
 
+// Store vote results in settings so they sync to all players
+gameState.settings.voteResults = {
+voteCounts: voteCounts,
+eliminatedPlayer: eliminatedPlayer,
+isTie: isTie
+};
+
 // Display results
 displayVoteResults(voteCounts, eliminatedPlayer, isTie);
 
-// Sync game state to show results to all players
+// Sync game state (including vote results) to show results to all players
 if (supabaseClient && currentGameId) {
 await updateGameInDB();
 }
