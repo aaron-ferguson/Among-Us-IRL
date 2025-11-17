@@ -862,7 +862,9 @@ gameState.meetingReady[myPlayerName] = true;
 // Host meta-game controls (mark eliminations, etc.) are always available
 // regardless of whether the host player is alive or eliminated
 if (isHost()) {
-document.getElementById('toggle-elimination-controls-btn').classList.remove('hidden');
+const toggleBtn = document.getElementById('toggle-elimination-controls-btn');
+toggleBtn.classList.remove('hidden');
+toggleBtn.disabled = false; // Re-enable for new meeting (was disabled during previous voting)
 renderHostPlayerStatus();
 }
 
