@@ -396,6 +396,13 @@
                         Join Next Game
                     </button>
                 </div>
+
+                <!-- Non-Host Controls (only visible to non-hosts) -->
+                <div id="non-host-game-controls" class="hidden" style="margin-top: 30px;">
+                    <button class="btn-secondary btn-block" onclick="returnToMenu()">
+                        Back to Menu
+                    </button>
+                </div>
             </div>
         </div>
 
@@ -408,10 +415,13 @@
                     Join New Game
                 </button>
                 <button class="btn-secondary btn-block" onclick="declineNewGameInvitation('later')" style="margin-bottom: 10px;">
-                    Not Yet
+                    Join Later
                 </button>
-                <button class="btn-secondary btn-block" onclick="declineNewGameInvitation('no')">
-                    No Thanks
+                <button class="btn-secondary btn-block" onclick="declineNewGameInvitation('no')" style="margin-bottom: 10px;">
+                    Decline (Stay in Results)
+                </button>
+                <button class="btn-secondary btn-block" onclick="returnToMenu()">
+                    Back to Menu
                 </button>
             </div>
         </div>

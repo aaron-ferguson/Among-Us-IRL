@@ -1545,6 +1545,11 @@ populateGameSummary();
 // Host meta-game controls are always available regardless of alive/eliminated status
 if (isHost()) {
 document.getElementById('host-game-controls').classList.remove('hidden');
+document.getElementById('non-host-game-controls').classList.add('hidden');
+} else {
+// Show non-host controls (Back to Menu button)
+document.getElementById('host-game-controls').classList.add('hidden');
+document.getElementById('non-host-game-controls').classList.remove('hidden');
 }
 }
 
@@ -1652,21 +1657,69 @@ document.getElementById('defeat-screen').classList.add('hidden');
 async function newGameSameSettings() {
 if (!isHost()) return;
 
-console.log('Host starting new game with same settings - going to setup');
+console.log('Host starting new game with same settings - going to waiting room');
 
 // Reset game state but keep settings
 gameState.players = [];
 gameState.meetingsUsed = 0;
 gameState.gameEnded = false;
-gameState.stage = 'setup';  // Go to setup, not waiting
+gameState.stage = 'waiting';  // Go directly to waiting room
 gameState.winner = null;
 gameState.meetingCaller = null;
 gameState.meetingType = null;
 gameState.isNewGameAfterPrevious = true;  // Flag to send invitations later
 
+// Add host back to players list
+if (myPlayerName) {
+gameState.players.push({
+name: myPlayerName,
+role: null,
+tasks: [],
+tasksCompleted: 0,
+alive: true,
+votedFor: null
+});
+}
+
 // Update database
 if (supabaseClient && currentGameId) {
 await updateGameInDB();
+// Re-add host to players table
+if (myPlayerName) {
+await addPlayerToDB(myPlayerName);
+}
+}
+
+// Send invitation to players from previous game
+if (supabaseClient && currentGameId) {
+console.log('New game with same settings - sending invitations to previous players');
+try {
+await supabaseClient
+.from('games')
+.update({
+settings: {
+...gameState.settings,
+newGameInvitation: 'new_game',
+invitationTimestamp: new Date().toISOString()
+}
+})
+.eq('id', currentGameId);
+
+console.log('Invitation sent to previous players');
+
+// Wait a moment for invitation to propagate
+await new Promise(resolve => setTimeout(resolve, 500));
+
+// Clear the invitation flag
+delete gameState.settings.newGameInvitation;
+delete gameState.settings.invitationTimestamp;
+gameState.isNewGameAfterPrevious = false;
+
+// Update database to clear the flag
+await updateGameInDB();
+} catch (err) {
+console.error('Error sending invitation:', err);
+}
 }
 
 // Clear all game end UI
@@ -1676,9 +1729,41 @@ document.getElementById('game-summary').innerHTML = '';
 document.getElementById('winning-team').textContent = '';
 document.getElementById('host-game-controls').classList.add('hidden');
 
-// Hide game end, show setup
+// Hide game end, show waiting room
 document.getElementById('game-end').classList.add('hidden');
-document.getElementById('setup-phase').classList.remove('hidden');
+document.getElementById('waiting-room').classList.remove('hidden');
+
+// Re-subscribe to players to ensure host sees joining players
+if (supabaseClient && currentGameId) {
+subscribeToPlayers();
+
+// Fetch current players from database to ensure we're in sync
+try {
+const { data: players, error } = await supabaseClient
+.from('players')
+.select('*')
+.eq('game_id', currentGameId);
+
+if (!error && players) {
+console.log('Fetched players from database:', players);
+gameState.players = players.map(p => ({
+name: p.name,
+role: p.role,
+ready: p.ready,
+tasks: p.tasks || [],
+tasksCompleted: p.tasks_completed || 0,
+alive: p.alive,
+votedFor: p.voted_for
+}));
+console.log('Updated gameState.players:', gameState.players);
+}
+} catch (err) {
+console.error('Error fetching players:', err);
+}
+}
+
+// Update lobby display
+updateLobby();
 }
 
 async function newGameNewSettings() {
@@ -1699,6 +1784,38 @@ gameState.isNewGameAfterPrevious = true;  // Flag to send invitations later
 // Update database
 if (supabaseClient && currentGameId) {
 await updateGameInDB();
+}
+
+// Send invitation to players from previous game
+if (supabaseClient && currentGameId) {
+console.log('New game with new settings - sending invitations to previous players');
+try {
+await supabaseClient
+.from('games')
+.update({
+settings: {
+...gameState.settings,
+newGameInvitation: 'new_game',
+invitationTimestamp: new Date().toISOString()
+}
+})
+.eq('id', currentGameId);
+
+console.log('Invitation sent to previous players');
+
+// Wait a moment for invitation to propagate
+await new Promise(resolve => setTimeout(resolve, 500));
+
+// Clear the invitation flag
+delete gameState.settings.newGameInvitation;
+delete gameState.settings.invitationTimestamp;
+gameState.isNewGameAfterPrevious = false;
+
+// Update database to clear the flag
+await updateGameInDB();
+} catch (err) {
+console.error('Error sending invitation:', err);
+}
 }
 
 // Clear all game end UI
