@@ -396,13 +396,19 @@ if (error || !data) {
 // Player no longer exists in database - we were kicked!
 console.log('Player existence check: Player not found in DB - we were kicked!');
 clearInterval(playerExistenceInterval);
+// Don't show "kicked" message if this is the host (they're likely starting a new game)
+if (!isHost()) {
 alert('You have been removed from the game by the host.');
+}
 returnToMenu();
 }
 } catch (err) {
 console.log('Player existence check error (likely kicked):', err);
 clearInterval(playerExistenceInterval);
+// Don't show "kicked" message if this is the host (they're likely starting a new game)
+if (!isHost()) {
 alert('You have been removed from the game by the host.');
+}
 returnToMenu();
 }
 }, 2000);
@@ -472,7 +478,10 @@ if (oldData.name === myPlayerName) {
 console.log('This device was kicked! Redirecting to menu...');
 
 // This player was kicked - notify and redirect
+// Don't show "kicked" message if this is the host (they're likely starting a new game)
+if (!isHost()) {
 alert('You have been removed from the game by the host.');
+}
 
 // Return to menu
 returnToMenu();
