@@ -632,6 +632,20 @@ document.getElementById('role-text').textContent = roleText;
 // Both roles use the same color class to avoid visual giveaways
 document.getElementById('role-text').className = 'role-revealed role-crewmate';
 
+// Set player status text
+const statusText = player.alive ? 'Alive' : 'Eliminated';
+const statusElement = document.getElementById('player-status-text');
+if (statusElement) {
+statusElement.textContent = statusText;
+statusElement.style.color = player.alive ? '#4caf50' : '#ff3838';
+statusElement.style.fontWeight = 'bold';
+}
+
+// Force role to be hidden when displaying gameplay (game start or after meeting)
+document.getElementById('role-hidden').classList.remove('hidden');
+document.getElementById('role-revealed').classList.add('hidden');
+document.getElementById('toggle-role-btn').textContent = 'Reveal Role';
+
 document.getElementById('meetings-remaining').textContent =
 gameState.settings.meetingLimit - gameState.meetingsUsed;
 
