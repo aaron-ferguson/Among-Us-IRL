@@ -951,21 +951,29 @@ await updatePlayerInDB(playerName, { alive: player.alive });
 }
 
 function updateReadyStatus() {
-const readyCount = Object.keys(gameState.meetingReady || {}).length;
-const totalCount = gameState.players.length;
+// Only count alive players for ready status
+const alivePlayers = gameState.players.filter(p => p.alive);
+const totalAliveCount = alivePlayers.length;
+const readyCount = Object.keys(gameState.meetingReady || {}).filter(playerName => {
+const player = gameState.players.find(p => p.name === playerName);
+return player && player.alive;
+}).length;
 
 document.getElementById('ready-for-vote-count').textContent = readyCount;
-document.getElementById('total-players-count').textContent = totalCount;
+document.getElementById('total-players-count').textContent = totalAliveCount;
 
-// Update ready players list
+// Update ready players list (only alive players)
 const readyList = document.getElementById('players-ready-list');
-const readyPlayers = Object.keys(gameState.meetingReady || {});
+const readyPlayers = Object.keys(gameState.meetingReady || {}).filter(playerName => {
+const player = gameState.players.find(p => p.name === playerName);
+return player && player.alive;
+});
 readyList.textContent = readyPlayers.length > 0
 ? readyPlayers.join(', ')
 : 'None yet';
 
-// Show start voting button to host if everyone is ready
-if (isHost() && readyCount === totalCount && totalCount > 0) {
+// Show start voting button to host if all ALIVE players are ready
+if (isHost() && readyCount === totalAliveCount && totalAliveCount > 0) {
 document.getElementById('host-start-voting-btn').classList.remove('hidden');
 document.getElementById('waiting-for-players-msg').classList.add('hidden');
 } else {
@@ -1017,6 +1025,10 @@ document.getElementById('host-elimination-controls')?.classList.add('hidden');
 document.getElementById('discussion-phase').classList.add('hidden');
 document.getElementById('voting-phase').classList.remove('hidden');
 
+// Check if this player is eliminated
+const currentPlayer = gameState.players.find(p => p.name === myPlayerName);
+const isEliminated = currentPlayer && !currentPlayer.alive;
+
 // Reset vote selection
 selectedVote = null;
 document.getElementById('submit-vote-btn').disabled = true;
@@ -1038,6 +1050,17 @@ statusList.appendChild(item);
 const voteOptions = document.getElementById('vote-options');
 voteOptions.innerHTML = '';
 
+if (isEliminated) {
+// Eliminated players cannot vote - show message instead
+voteOptions.innerHTML = `
+<div style="padding: 20px; text-align: center; color: #a0a0a0;">
+<p style="font-size: 1.1rem; margin-bottom: 10px;">You have been eliminated</p>
+<p>You can observe the voting but cannot cast a vote.</p>
+</div>
+`;
+document.getElementById('submit-vote-btn').style.display = 'none';
+} else {
+// Living players can vote
 gameState.players.filter(p => p.alive).forEach(player => {
 const option = document.createElement('div');
 option.className = 'vote-option';
@@ -1052,8 +1075,11 @@ skipOption.className = 'vote-option';
 skipOption.onclick = () => selectVote('skip', skipOption);
 skipOption.innerHTML = '<strong>Skip</strong>';
 voteOptions.appendChild(skipOption);
+document.getElementById('submit-vote-btn').style.display = 'block';
+}
 
-// Start vote timer
+// Start vote timer (only for alive players)
+if (!isEliminated) {
 let timeLeft = gameState.settings.meetingTimer;
 document.getElementById('vote-timer').textContent = timeLeft;
 
@@ -1082,6 +1108,10 @@ console.error('✗ Error submitting timeout vote:', err);
 });
 }
 }, 1000);
+} else {
+// Eliminated players don't see timer - they'll see results when they're ready
+document.getElementById('vote-timer').textContent = 'Waiting for voting to complete...';
+}
 }
 
 let selectedVote = null;
@@ -1257,13 +1287,14 @@ eliminatedPlayer: eliminatedPlayer,
 isTie: isTie
 };
 
-// Display results
-displayVoteResults(voteCounts, eliminatedPlayer, isTie);
-
-// Sync game state (including vote results) to show results to all players
+// Sync game state (including vote results) to database
+// HOST does NOT display results directly - waits for database sync like everyone else
 if (supabaseClient && currentGameId) {
 await updateGameInDB();
+console.log('Vote results stored in database, waiting for sync to display...');
 }
+// Note: displayVoteResults() will be called by subscribeToGame() callback
+// when the database update propagates back to ALL players (including host)
 
 // Check win conditions ONLY if someone was actually eliminated
 if (eliminatedPlayer) {
@@ -1277,33 +1308,8 @@ return; // Don't show resume button, game is ending
 }
 }
 
-// Show resume button for host (game continues)
-const resumeBtn = document.getElementById('resume-game-btn');
-const waitingMsg = document.getElementById('waiting-for-host-resume');
-
-console.log('=== Resume Button Setup (tallyVotes) ===');
-console.log('isHost():', isHost());
-console.log('myPlayerName:', myPlayerName);
-console.log('gameState.hostName:', gameState.hostName);
-console.log('isGameCreator:', isGameCreator);
-
-// Always show the button, but disable it for non-hosts
-resumeBtn.classList.remove('hidden');
-waitingMsg.classList.add('hidden');
-
-if (isHost()) {
-console.log('→ Setting button for HOST');
-resumeBtn.disabled = false;
-resumeBtn.textContent = 'Resume Game';
-resumeBtn.className = 'btn-success btn-block';
-} else {
-console.log('→ Setting button for NON-HOST (disabled)');
-resumeBtn.disabled = true;
-resumeBtn.textContent = 'Only Host Can Resume Game';
-resumeBtn.className = 'btn-secondary btn-block';
-}
-console.log('Button state after setup - disabled:', resumeBtn.disabled, 'text:', resumeBtn.textContent);
-console.log('=========================================');
+// Note: Resume button will be configured by displayVoteResults() when called by subscription callback
+// This maintains centralized architecture where all players use same code path
 }
 
 function displayVoteResults(voteCounts, eliminatedPlayer, isTie) {
@@ -1345,19 +1351,22 @@ console.log('isHost():', isHost());
 console.log('myPlayerName:', myPlayerName);
 console.log('gameState.hostName:', gameState.hostName);
 
-// Initially hide both (will be configured by tallyVotes when game doesn't end)
-resumeBtn.classList.add('hidden');
+// Always show resume button, configure based on host status
+resumeBtn.classList.remove('hidden');
 waitingMsg.classList.add('hidden');
 
-// Show disabled button for non-hosts immediately
-if (!isHost()) {
-console.log('→ NON-HOST: Setting disabled button immediately');
+if (isHost()) {
+console.log('→ HOST: Setting enabled resume button');
+resumeBtn.disabled = false;
+resumeBtn.textContent = 'Resume Game';
+resumeBtn.className = 'btn-success btn-block';
+} else {
+console.log('→ NON-HOST: Setting disabled button');
 resumeBtn.disabled = true;
 resumeBtn.textContent = 'Only Host Can Resume Game';
 resumeBtn.className = 'btn-secondary btn-block';
-resumeBtn.classList.remove('hidden');
-console.log('Button state - disabled:', resumeBtn.disabled, 'text:', resumeBtn.textContent);
 }
+console.log('Button state - disabled:', resumeBtn.disabled, 'text:', resumeBtn.textContent);
 console.log('================================================');
 }
 

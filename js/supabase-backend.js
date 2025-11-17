@@ -283,30 +283,34 @@ if (!document.getElementById('discussion-phase').classList.contains('hidden')) {
 updateReadyStatus();
 }
 
-// Check if all votes are in and we're waiting for results
+// Check if we're in voting or waiting for results
 const voteResultsVisible = !document.getElementById('vote-results').classList.contains('hidden');
-if (voteResultsVisible) {
-const totalPlayers = gameState.players.length;
+const votingPhaseVisible = !document.getElementById('voting-phase').classList.contains('hidden');
+
+if (voteResultsVisible || votingPhaseVisible) {
+// Only count alive players for voting
+const alivePlayers = gameState.players.filter(p => p.alive);
+const totalAlivePlayers = alivePlayers.length;
 const votesSubmitted = Object.keys(gameState.votes).length;
 
-// Check if host has sent vote results - display them for non-host players
-// IMPORTANT: Only display if votes have been tallied (prevents showing old results)
-if (!isHost() && newData.settings && newData.settings.voteResults && gameState.votesTallied) {
-console.log('Non-host: Displaying vote results from host');
+// Check if vote results are available - display them for ALL players (including host and eliminated)
+// This creates a centralized, event-driven architecture where all players react to database state equally
+if (newData.settings && newData.settings.voteResults) {
+console.log('Vote results received from database, displaying for all players...');
 const { voteCounts, eliminatedPlayer, isTie } = newData.settings.voteResults;
 displayVoteResults(voteCounts, eliminatedPlayer, isTie);
-} else {
-// Update vote count display for ALL players (not just host)
+} else if (voteResultsVisible) {
+// Update vote count display for players already on results screen
 const resultsDisplay = document.getElementById('results-display');
-if (resultsDisplay && votesSubmitted < totalPlayers && !gameState.votesTallied) {
+if (resultsDisplay && votesSubmitted < totalAlivePlayers && !gameState.votesTallied) {
 resultsDisplay.innerHTML = `
-<p style="color: #a0a0a0;">Votes submitted: ${votesSubmitted}/${totalPlayers}</p>
+<p style="color: #a0a0a0;">Votes submitted: ${votesSubmitted}/${totalAlivePlayers}</p>
 <p style="color: #5eb3f6;">Waiting for all players to vote...</p>
 `;
 }
 
-// Host tallies votes when all are in
-if (isHost() && votesSubmitted === totalPlayers && resultsDisplay && resultsDisplay.textContent.includes('Waiting')) {
+// Host tallies votes when all ALIVE players have voted
+if (isHost() && votesSubmitted === totalAlivePlayers && resultsDisplay && resultsDisplay.textContent.includes('Waiting')) {
 // All votes are in! Tally them
 console.log('All votes received, tallying...');
 tallyVotes();
