@@ -1552,24 +1552,42 @@ function populateGameSummary() {
 const summaryDiv = document.getElementById('game-summary');
 const winningTeam = document.getElementById('winning-team');
 
-// Set winning team text
+// Set winning team text (normal color, not red or green)
 if (gameState.winner === 'crewmates') {
 winningTeam.textContent = 'Crewmates Win!';
-winningTeam.style.color = '#4CAF50';
+winningTeam.style.color = '#ffffff';
 } else if (gameState.winner === 'imposters') {
 winningTeam.textContent = 'Imposters Win!';
-winningTeam.style.color = '#ff3838';
+winningTeam.style.color = '#ffffff';
 }
 
-// Build player summary HTML
-summaryDiv.innerHTML = '';
-gameState.players.forEach(player => {
-const playerCard = document.createElement('div');
-playerCard.style.cssText = 'background: rgba(255,255,255,0.05); padding: 15px; margin-bottom: 15px; border-radius: 8px; border-left: 4px solid ' + (player.role === 'imposter' ? '#ff3838' : '#4CAF50');
+// Separate players by role
+const crewmates = gameState.players.filter(p => p.role === 'crewmate');
+const imposters = gameState.players.filter(p => p.role === 'imposter');
 
-const roleText = player.role.charAt(0).toUpperCase() + player.role.slice(1);
+// Calculate total crewmate tasks
+const totalCrewmateTasks = crewmates.reduce((total, player) => {
+return total + (player.tasksCompleted || 0);
+}, 0);
+const maxCrewmateTasks = crewmates.reduce((total, player) => {
+return total + (player.tasks ? player.tasks.length : 0);
+}, 0);
+
+// Build summary HTML
+summaryDiv.innerHTML = '';
+
+// Crewmates Section
+const crewmatesSection = document.createElement('div');
+crewmatesSection.style.cssText = 'margin-bottom: 30px;';
+crewmatesSection.innerHTML = `
+<h3 style="color: #5eb3f6; margin-bottom: 15px;">Crewmates (${totalCrewmateTasks}/${maxCrewmateTasks} tasks completed)</h3>
+`;
+
+crewmates.forEach(player => {
+const playerCard = document.createElement('div');
+playerCard.style.cssText = 'background: rgba(255,255,255,0.05); padding: 15px; margin-bottom: 10px; border-radius: 8px;';
+
 const statusText = player.alive ? 'Alive' : 'Eliminated';
-const statusColor = player.alive ? '#4CAF50' : '#ff3838';
 
 // Build tasks list
 let tasksHTML = '<div style="margin-top: 10px;">';
@@ -1577,7 +1595,7 @@ if (player.tasks && player.tasks.length > 0) {
 player.tasks.forEach((taskObj, index) => {
 const completed = index < (player.tasksCompleted || 0);
 const checkmark = completed ? '✓' : '○';
-const color = completed ? '#4CAF50' : '#a0a0a0';
+const color = completed ? '#ffffff' : '#a0a0a0';
 tasksHTML += `<div style="color: ${color}; font-size: 0.9rem; margin: 3px 0;">${checkmark} ${taskObj.task} (${taskObj.room})</div>`;
 });
 } else {
@@ -1586,21 +1604,41 @@ tasksHTML += '<div style="color: #a0a0a0; font-size: 0.9rem;">No tasks</div>';
 tasksHTML += '</div>';
 
 playerCard.innerHTML = `
-<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-<strong style="font-size: 1.1rem;">${player.name}</strong>
-<div style="text-align: right;">
-<span style="background: ${player.role === 'imposter' ? '#ff3838' : '#4CAF50'}; padding: 3px 10px; border-radius: 12px; font-size: 0.85rem; margin-right: 8px;">${roleText}</span>
-<span style="color: ${statusColor}; font-size: 0.9rem;">${statusText}</span>
+<div style="margin-bottom: 5px;">
+<strong style="font-size: 1.1rem; color: #ffffff;">${player.name}</strong>
 </div>
-</div>
-<div style="color: #a0a0a0; font-size: 0.9rem; margin-bottom: 5px;">
-Tasks: ${player.tasksCompleted || 0}/${player.tasks ? player.tasks.length : 0} completed
-</div>
+<div style="color: #a0a0a0; font-size: 0.9rem; margin-bottom: 5px;">${statusText}</div>
 ${tasksHTML}
 `;
 
-summaryDiv.appendChild(playerCard);
+crewmatesSection.appendChild(playerCard);
 });
+
+summaryDiv.appendChild(crewmatesSection);
+
+// Imposters Section
+const impostersSection = document.createElement('div');
+impostersSection.innerHTML = `
+<h3 style="color: #5eb3f6; margin-bottom: 15px;">Imposters</h3>
+`;
+
+imposters.forEach(player => {
+const playerCard = document.createElement('div');
+playerCard.style.cssText = 'background: rgba(255,255,255,0.05); padding: 15px; margin-bottom: 10px; border-radius: 8px;';
+
+const statusText = player.alive ? 'Alive' : 'Eliminated';
+
+playerCard.innerHTML = `
+<div style="margin-bottom: 5px;">
+<strong style="font-size: 1.1rem; color: #ffffff;">${player.name}</strong>
+</div>
+<div style="color: #a0a0a0; font-size: 0.9rem;">${statusText}</div>
+`;
+
+impostersSection.appendChild(playerCard);
+});
+
+summaryDiv.appendChild(impostersSection);
 }
 
 function closeVictoryScreen() {
