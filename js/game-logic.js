@@ -859,6 +859,8 @@ gameState.meetingReady[myPlayerName] = true;
 }
 
 // Show toggle button for host controls if this is the host
+// Host meta-game controls (mark eliminations, etc.) are always available
+// regardless of whether the host player is alive or eliminated
 if (isHost()) {
 document.getElementById('toggle-elimination-controls-btn').classList.remove('hidden');
 renderHostPlayerStatus();
@@ -1349,11 +1351,19 @@ ejectedText.textContent = 'No one was ejected.';
 }
 
 // Show appropriate button based on host status
+// IMPORTANT: Host has a meta-game role separate from player role
+// Host controls (resume, mark eliminations, etc.) are ALWAYS available to host
+// regardless of whether the host player is alive or eliminated
 const resumeBtn = document.getElementById('resume-game-btn');
 const waitingMsg = document.getElementById('waiting-for-host-resume');
 
+// Check if current player is host AND if they are eliminated
+const currentPlayer = gameState.players.find(p => p.name === myPlayerName);
+const hostIsEliminated = isHost() && currentPlayer && !currentPlayer.alive;
+
 console.log('=== Resume Button Setup (displayVoteResults) ===');
 console.log('isHost():', isHost());
+console.log('Host is eliminated:', hostIsEliminated);
 console.log('myPlayerName:', myPlayerName);
 console.log('gameState.hostName:', gameState.hostName);
 
@@ -1362,7 +1372,7 @@ resumeBtn.classList.remove('hidden');
 waitingMsg.classList.add('hidden');
 
 if (isHost()) {
-console.log('→ HOST: Setting enabled resume button');
+console.log('→ HOST: Setting enabled resume button (meta-game role - works even if host is eliminated)');
 resumeBtn.disabled = false;
 resumeBtn.textContent = 'Resume Game';
 resumeBtn.className = 'btn-success btn-block';
@@ -1494,6 +1504,7 @@ document.getElementById('meeting-location-defeat').textContent = gameState.setti
 populateGameSummary();
 
 // Show host controls if this player is the host
+// Host meta-game controls are always available regardless of alive/eliminated status
 if (isHost()) {
 document.getElementById('host-game-controls').classList.remove('hidden');
 }
