@@ -1059,8 +1059,14 @@ voteOptions.innerHTML = `
 </div>
 `;
 document.getElementById('submit-vote-btn').style.display = 'none';
+// Hide timer and vote labels for eliminated players
+document.getElementById('vote-timer-label').style.display = 'none';
+document.getElementById('vote-to-eliminate-label').style.display = 'none';
 } else {
 // Living players can vote
+// Show timer and vote labels for alive players
+document.getElementById('vote-timer-label').style.display = 'block';
+document.getElementById('vote-to-eliminate-label').style.display = 'block';
 gameState.players.filter(p => p.alive).forEach(player => {
 const option = document.createElement('div');
 option.className = 'vote-option';
