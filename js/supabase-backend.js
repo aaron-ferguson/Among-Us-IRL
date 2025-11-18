@@ -95,7 +95,7 @@ return null;
 }
 }
 
-async function addPlayerToDB(playerName) {
+async function addPlayerToDB(playerName, ready = false) {
 if (!supabaseClient || !currentGameId) {
 console.warn('Supabase not configured or no game ID');
 return null;
@@ -107,7 +107,7 @@ const { data, error } = await supabaseClient
 .insert({
 game_id: currentGameId,
 name: playerName,
-ready: true,
+ready: ready,
 alive: true,
 tasks: [],
 tasks_completed: 0
@@ -117,7 +117,7 @@ tasks_completed: 0
 
 if (error) throw error;
 
-console.log('Player added to DB:', playerName);
+console.log('Player added to DB:', playerName, 'ready:', ready);
 return data;
 } catch (error) {
 console.error('Error adding player:', error);
@@ -247,11 +247,12 @@ if (!isHost() && newData.settings.newGameInvitation && myPlayerName) {
 console.log('=== NEW GAME INVITATION DETECTED ===');
 console.log('Invitation type:', newData.settings.newGameInvitation);
 
-// Hide waiting room and show invitation modal
-// This ensures players can't see the waiting room until they accept
+// Hide game end screen, waiting room, and show invitation modal
+// This ensures players can see the invitation even if they're viewing game summary
+document.getElementById('game-end').classList.add('hidden');
 document.getElementById('waiting-room').classList.add('hidden');
 document.getElementById('new-game-invitation').classList.remove('hidden');
-console.log('Invitation modal shown, waiting room hidden');
+console.log('Invitation modal shown, game end and waiting room hidden');
 }
 }
 
@@ -299,8 +300,9 @@ if (newData.settings && newData.settings.voteResults) {
 console.log('Vote results received from database, displaying for all players...');
 const { voteCounts, eliminatedPlayer, isTie } = newData.settings.voteResults;
 displayVoteResults(voteCounts, eliminatedPlayer, isTie);
-} else if (voteResultsVisible) {
-// Update vote count display for players already on results screen
+} else {
+// Update vote count display for players on results screen (if applicable)
+if (voteResultsVisible) {
 const resultsDisplay = document.getElementById('results-display');
 if (resultsDisplay && votesSubmitted < totalAlivePlayers && !gameState.votesTallied) {
 resultsDisplay.innerHTML = `
@@ -308,11 +310,12 @@ resultsDisplay.innerHTML = `
 <p style="color: #5eb3f6;">Waiting for all players to vote...</p>
 `;
 }
+}
 
-// Host tallies votes when all ALIVE players have voted
-if (isHost() && votesSubmitted === totalAlivePlayers && resultsDisplay && resultsDisplay.textContent.includes('Waiting')) {
+// Host tallies votes when all ALIVE players have voted (works whether host is on voting or results screen)
+if (isHost() && votesSubmitted === totalAlivePlayers && !gameState.votesTallied) {
 // All votes are in! Tally them
-console.log('All votes received, tallying...');
+console.log('All votes received, tallying... (host on', voteResultsVisible ? 'results' : 'voting', 'screen)');
 tallyVotes();
 }
 }

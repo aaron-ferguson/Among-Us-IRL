@@ -177,39 +177,6 @@ document.getElementById('min-players-display').textContent = gameState.settings.
 document.getElementById('max-players-display').textContent = gameState.settings.maxPlayers;
 document.getElementById('imposter-count-display').textContent = gameState.settings.imposterCount;
 
-// Check if this is a new game after a previous one (need to send invitations)
-const isNewGameAfterPrevious = gameState.isNewGameAfterPrevious || false;
-
-if (isNewGameAfterPrevious && supabaseClient && currentGameId) {
-console.log('This is a new game after previous - sending invitations');
-
-// Send invitation to players from previous game
-try {
-await supabaseClient
-.from('games')
-.update({
-settings: {
-...gameState.settings,
-newGameInvitation: 'new_game',
-invitationTimestamp: new Date().toISOString()
-}
-})
-.eq('id', currentGameId);
-
-console.log('Invitation sent to previous players');
-
-// Wait a moment for invitation to propagate
-await new Promise(resolve => setTimeout(resolve, 500));
-
-// Clear the invitation flag
-delete gameState.settings.newGameInvitation;
-delete gameState.settings.invitationTimestamp;
-gameState.isNewGameAfterPrevious = false;
-} catch (err) {
-console.error('Error sending invitation:', err);
-}
-}
-
 // Switch to waiting room
 gameState.stage = 'waiting';
 document.getElementById('setup-phase').classList.add('hidden');
@@ -224,6 +191,41 @@ updateJoinSection();
 // Create game in database - WAIT for it to complete so currentGameId is set
 await createGameInDB();
 console.log('Database ready - currentGameId:', currentGameId);
+
+// Check if this came from newGameNewSettings() (has previous game ID saved)
+const previousGameId = gameState.previousGameIdForInvites;
+if (previousGameId && supabaseClient) {
+console.log('Sending invitations to players from previous game:', previousGameId);
+
+try {
+const { data: previousGame } = await supabaseClient
+.from('games')
+.select('settings')
+.eq('id', previousGameId)
+.single();
+
+if (previousGame) {
+await supabaseClient
+.from('games')
+.update({
+settings: {
+...previousGame.settings,
+newGameInvitation: 'new_game',
+newGameRoomCode: gameState.roomCode,
+invitationTimestamp: new Date().toISOString()
+}
+})
+.eq('id', previousGameId);
+
+console.log('Invitation sent to previous players with new room code:', gameState.roomCode);
+}
+
+// Clear the saved previous game ID
+delete gameState.previousGameIdForInvites;
+} catch (err) {
+console.error('Error sending invitation:', err);
+}
+}
 }
 
 function showInstructions() {
@@ -323,8 +325,8 @@ nameInput.value = '';
 updateJoinSection();
 updateLobby();
 
-// Add player to database
-await addPlayerToDB(name);
+// Add player to database with ready=true (submitting name = ready)
+await addPlayerToDB(name, true);
 
 // Start polling to detect if we get kicked
 startPlayerExistenceCheck();
@@ -489,13 +491,18 @@ return;
 const oldName = player.name;
 player.name = trimmedName;
 myPlayerName = trimmedName;
+
+// Mark player as ready after they edit their name
+player.ready = true;
+console.log('Player edited name - marking as ready');
+
 updateJoinSection();
 updateLobby();
 
 // Update in database - need to delete old and insert new (since name is part of unique constraint)
 if (supabaseClient && currentGameId) {
-removePlayerFromDB(oldName).then(() => {
-addPlayerToDB(trimmedName);
+removePlayerFromDB(oldName).then(async () => {
+await addPlayerToDB(trimmedName, true); // Add with ready=true
 });
 }
 }
@@ -515,6 +522,26 @@ updateLobby();
 
 // Remove from database
 removePlayerFromDB(playerName);
+}
+}
+
+async function markPlayerReady(playerName) {
+const player = gameState.players.find(p => p.name === playerName);
+if (!player) {
+console.warn('Cannot mark player as ready - player not found:', playerName);
+return;
+}
+
+// Update local state
+player.ready = true;
+console.log('Marked player as ready:', playerName);
+
+// Update UI
+updateLobby();
+
+// Update database
+if (supabaseClient && currentGameId) {
+await updatePlayerInDB(playerName, { ready: true });
 }
 }
 
@@ -1657,22 +1684,34 @@ document.getElementById('defeat-screen').classList.add('hidden');
 async function newGameSameSettings() {
 if (!isHost()) return;
 
-console.log('Host starting new game with same settings - going to waiting room');
+console.log('Host starting new game with same settings - creating NEW session');
+
+// Save reference to old game ID for sending invitations
+const previousGameId = currentGameId;
+console.log('Previous game ID:', previousGameId);
+
+// Unsubscribe from old game channels
+unsubscribeFromChannels();
+
+// Generate new room code for new session
+const newRoomCode = generateRoomCode();
+console.log('New room code:', newRoomCode);
 
 // Reset game state but keep settings
 gameState.players = [];
 gameState.meetingsUsed = 0;
 gameState.gameEnded = false;
-gameState.stage = 'waiting';  // Go directly to waiting room
+gameState.stage = 'waiting';
 gameState.winner = null;
 gameState.meetingCaller = null;
 gameState.meetingType = null;
-gameState.isNewGameAfterPrevious = true;  // Flag to send invitations later
+gameState.roomCode = newRoomCode;
 
-// Add host back to players list
+// Add host to players list (host is automatically ready since they initiated the new game)
 if (myPlayerName) {
 gameState.players.push({
 name: myPlayerName,
+ready: true,
 role: null,
 tasks: [],
 tasksCompleted: 0,
@@ -1681,46 +1720,58 @@ votedFor: null
 });
 }
 
-// Update database
-if (supabaseClient && currentGameId) {
-await updateGameInDB();
-// Re-add host to players table
+// Create NEW game session in database
+if (supabaseClient) {
+await createGameInDB();
+console.log('New game session created with ID:', currentGameId);
+
+// Add host to players table in new game database
 if (myPlayerName) {
-await addPlayerToDB(myPlayerName);
-}
+await addPlayerToDB(myPlayerName, true);
+console.log('Host added to new game players table');
 }
 
-// Send invitation to players from previous game
-if (supabaseClient && currentGameId) {
-console.log('New game with same settings - sending invitations to previous players');
+// Send invitation to players from PREVIOUS game with new room code
+if (previousGameId) {
+console.log('Sending invitations to players from previous game');
 try {
+const { data: previousGame } = await supabaseClient
+.from('games')
+.select('settings')
+.eq('id', previousGameId)
+.single();
+
+if (previousGame) {
 await supabaseClient
 .from('games')
 .update({
 settings: {
-...gameState.settings,
+...previousGame.settings,
 newGameInvitation: 'new_game',
+newGameRoomCode: newRoomCode,
 invitationTimestamp: new Date().toISOString()
 }
 })
-.eq('id', currentGameId);
+.eq('id', previousGameId);
 
-console.log('Invitation sent to previous players');
-
-// Wait a moment for invitation to propagate
-await new Promise(resolve => setTimeout(resolve, 500));
-
-// Clear the invitation flag
-delete gameState.settings.newGameInvitation;
-delete gameState.settings.invitationTimestamp;
-gameState.isNewGameAfterPrevious = false;
-
-// Update database to clear the flag
-await updateGameInDB();
+console.log('Invitation sent to previous players with new room code:', newRoomCode);
+}
 } catch (err) {
 console.error('Error sending invitation:', err);
 }
 }
+}
+
+// Update room code display
+document.getElementById('room-code').textContent = newRoomCode;
+
+// Update displays
+document.getElementById('min-players-display').textContent = gameState.settings.minPlayers;
+document.getElementById('max-players-display').textContent = gameState.settings.maxPlayers;
+document.getElementById('imposter-count-display').textContent = gameState.settings.imposterCount;
+
+// Generate QR code for new session
+generateQRCode();
 
 // Clear all game end UI
 document.getElementById('victory-screen').classList.add('hidden');
@@ -1733,36 +1784,17 @@ document.getElementById('host-game-controls').classList.add('hidden');
 document.getElementById('game-end').classList.add('hidden');
 document.getElementById('waiting-room').classList.remove('hidden');
 
-// Re-subscribe to players to ensure host sees joining players
+// Subscribe to new game channels
 if (supabaseClient && currentGameId) {
+subscribeToGame();
 subscribeToPlayers();
-
-// Fetch current players from database to ensure we're in sync
-try {
-const { data: players, error } = await supabaseClient
-.from('players')
-.select('*')
-.eq('game_id', currentGameId);
-
-if (!error && players) {
-console.log('Fetched players from database:', players);
-gameState.players = players.map(p => ({
-name: p.name,
-role: p.role,
-ready: p.ready,
-tasks: p.tasks || [],
-tasksCompleted: p.tasks_completed || 0,
-alive: p.alive,
-votedFor: p.voted_for
-}));
-console.log('Updated gameState.players:', gameState.players);
-}
-} catch (err) {
-console.error('Error fetching players:', err);
-}
 }
 
-// Update lobby display
+// Start player existence check for new game
+startPlayerExistenceCheck();
+
+// Update UI sections
+updateJoinSection();
 updateLobby();
 }
 
@@ -1770,6 +1802,13 @@ async function newGameNewSettings() {
 if (!isHost()) return;
 
 console.log('Host starting new game with new settings - going to setup');
+
+// Save reference to old game ID for sending invitations later (after creating new game)
+gameState.previousGameIdForInvites = currentGameId;
+console.log('Saved previous game ID for invitations:', currentGameId);
+
+// Unsubscribe from old game channels
+unsubscribeFromChannels();
 
 // Reset game state
 gameState.players = [];
@@ -1779,44 +1818,8 @@ gameState.stage = 'setup';
 gameState.winner = null;
 gameState.meetingCaller = null;
 gameState.meetingType = null;
-gameState.isNewGameAfterPrevious = true;  // Flag to send invitations later
-
-// Update database
-if (supabaseClient && currentGameId) {
-await updateGameInDB();
-}
-
-// Send invitation to players from previous game
-if (supabaseClient && currentGameId) {
-console.log('New game with new settings - sending invitations to previous players');
-try {
-await supabaseClient
-.from('games')
-.update({
-settings: {
-...gameState.settings,
-newGameInvitation: 'new_game',
-invitationTimestamp: new Date().toISOString()
-}
-})
-.eq('id', currentGameId);
-
-console.log('Invitation sent to previous players');
-
-// Wait a moment for invitation to propagate
-await new Promise(resolve => setTimeout(resolve, 500));
-
-// Clear the invitation flag
-delete gameState.settings.newGameInvitation;
-delete gameState.settings.invitationTimestamp;
-gameState.isNewGameAfterPrevious = false;
-
-// Update database to clear the flag
-await updateGameInDB();
-} catch (err) {
-console.error('Error sending invitation:', err);
-}
-}
+gameState.roomCode = '';
+currentGameId = null;  // Clear current game ID - new one will be created when host clicks "Create Game"
 
 // Clear all game end UI
 document.getElementById('victory-screen').classList.add('hidden');
@@ -1828,11 +1831,34 @@ document.getElementById('host-game-controls').classList.add('hidden');
 // Hide game end, show setup
 document.getElementById('game-end').classList.add('hidden');
 document.getElementById('setup-phase').classList.remove('hidden');
+
+// Note: Invitations will be sent from createGame() after host configures settings
 }
 
-function acceptNewGameInvitation() {
+async function acceptNewGameInvitation() {
 console.log('=== acceptNewGameInvitation called ===');
 console.log('myPlayerName:', myPlayerName);
+
+// Save player name for name confirmation modal
+const savedPlayerName = myPlayerName;
+
+// Get the new room code from the invitation
+const newRoomCode = gameState.settings?.newGameRoomCode;
+console.log('New game room code from invitation:', newRoomCode);
+
+if (!newRoomCode) {
+alert('Error: No room code found in invitation. Please try again.');
+return;
+}
+
+// Stop player existence polling for old game
+if (playerExistenceInterval) {
+clearInterval(playerExistenceInterval);
+playerExistenceInterval = null;
+}
+
+// Unsubscribe from old game channels
+unsubscribeFromChannels();
 
 // Hide the invitation modal and join button
 document.getElementById('new-game-invitation').classList.add('hidden');
@@ -1847,9 +1873,31 @@ document.getElementById('winning-team').textContent = '';
 document.getElementById('game-end').classList.add('hidden');
 console.log('Game end UI cleared');
 
+// Join the new game using the room code
+const gameData = await joinGameFromDB(newRoomCode);
+
+if (gameData) {
+// Successfully joined new game
+console.log('Joined new game session:', newRoomCode);
+
+// Restore player name for name confirmation
+myPlayerName = savedPlayerName;
+
+// Show waiting room
+document.getElementById('waiting-room').classList.remove('hidden');
+
+// Update room code display to show new game code
+document.getElementById('room-code').textContent = newRoomCode;
+
+// Generate QR code for new game session
+generateQRCode();
+
 // Show name confirmation modal
 console.log('Calling showNameConfirmation...');
 showNameConfirmation();
+} else {
+alert(`Could not join new game. Room code: ${newRoomCode}`);
+}
 }
 
 function showNameConfirmation() {
@@ -1915,12 +1963,42 @@ console.log('Name confirmation modal hidden');
 document.getElementById('waiting-room').classList.remove('hidden');
 console.log('Waiting room shown');
 
-// Add player to the game
+// Check if player already exists (reconnection case)
+const existingPlayer = gameState.players.find(p => p.name.toLowerCase() === nameToUse.toLowerCase());
+
+if (existingPlayer) {
+// Player exists - just mark them as ready
+console.log('Player already exists - marking as ready');
+await markPlayerReady(nameToUse);
+
+// Update last_seen in database
 if (supabaseClient && currentGameId) {
-console.log('Adding player to game...');
-await addPlayerToGame(nameToUse);
-console.log('Player added');
+await updatePlayerInDB(nameToUse, { last_seen: new Date().toISOString() });
 }
+} else {
+// New player - add them with ready=true since they confirmed their name
+console.log('Adding new player with ready=true');
+gameState.players.push({
+name: nameToUse,
+ready: true,
+role: null,
+tasks: [],
+alive: true,
+tasksCompleted: 0
+});
+
+// Add to database with ready=true
+if (supabaseClient && currentGameId) {
+await addPlayerToDB(nameToUse, true);
+}
+}
+
+// Update UI
+updateJoinSection();
+updateLobby();
+
+// Start polling to detect if we get kicked
+startPlayerExistenceCheck();
 }
 
 function leaveGame() {
