@@ -441,7 +441,7 @@
                 <button class="btn-secondary btn-block" onclick="editPlayerName()" id="edit-name-btn" style="margin-bottom: 10px;">
                     Edit Name
                 </button>
-                <button class="btn-secondary btn-block" onclick="leaveGame()">
+                <button class="btn-secondary btn-block" onclick="declineJoinGame()">
                     Leave Game
                 </button>
             </div>
@@ -523,12 +523,7 @@
         </div>
     </div>
 
-    <!-- JavaScript Modules (order matters for dependencies) -->
-    <script src="js/rooms-and-tasks.js"></script>
-    <script src="js/game-state.js"></script>
-    <script src="js/supabase-backend.js"></script>
-    <script src="js/room-task-manager.js"></script>
-    <script src="js/game-logic.js"></script>
-    <script src="js/init.js"></script>
+    <!-- JavaScript ES Module (entry point imports all dependencies) -->
+    <script type="module" src="js/init.js"></script>
 </body>
 </html>

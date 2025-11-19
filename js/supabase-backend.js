@@ -1,5 +1,22 @@
 // ==================== SUPABASE HELPER FUNCTIONS ====================
 
+// Import from game-state module
+import {
+  gameState,
+  supabaseClient,
+  gameChannel,
+  playersChannel,
+  currentGameId,
+  myPlayerName,
+  isGameCreator,
+  isHost,
+  setGameChannel,
+  setPlayersChannel,
+  setCurrentGameId,
+  setMyPlayerName,
+  setIsGameCreator
+} from './game-state.js';
+
 async function createGameInDB() {
 if (!supabaseClient) {
 console.warn('Supabase not configured - running in offline mode');
@@ -23,7 +40,7 @@ winner: gameState.winner
 
 if (error) throw error;
 
-currentGameId = data.id;
+setCurrentGameId(data.id);
 console.log('Game created in DB:', data.id);
 
 // Subscribe to realtime updates
@@ -54,7 +71,7 @@ const { data: gameData, error: gameError } = await supabaseClient
 
 if (gameError) throw gameError;
 
-currentGameId = gameData.id;
+setCurrentGameId(gameData.id);
 
 // Load game state
 gameState.roomCode = gameData.room_code;
@@ -208,7 +225,7 @@ if (gameChannel) {
 supabaseClient.removeChannel(gameChannel);
 }
 
-gameChannel = supabaseClient
+setGameChannel(supabaseClient
 .channel(`game:${currentGameId}`)
 .on('postgres_changes',
 {
@@ -329,7 +346,7 @@ handleStageChange();
 updateHostControls();
 }
 )
-.subscribe();
+.subscribe());
 
 console.log('Subscribed to game updates');
 }
@@ -350,7 +367,7 @@ console.log('Removing previous players channel');
 supabaseClient.removeChannel(playersChannel);
 }
 
-playersChannel = supabaseClient
+setPlayersChannel(supabaseClient
 .channel(`players:${currentGameId}`)
 .on('postgres_changes',
 {
@@ -365,7 +382,7 @@ console.log('Players changed:', payload);
 handlePlayerChange(payload);
 }
 )
-.subscribe();
+.subscribe());
 
 console.log('✓ Subscribed to player updates for game:', currentGameId);
 }
@@ -640,12 +657,28 @@ document.getElementById('host-game-controls').classList.remove('hidden');
 function unsubscribeFromChannels() {
 if (gameChannel) {
 supabaseClient.removeChannel(gameChannel);
-gameChannel = null;
+setGameChannel(null);
 }
 if (playersChannel) {
 supabaseClient.removeChannel(playersChannel);
-playersChannel = null;
+setPlayersChannel(null);
 }
 }
+
+// Export for testing and module usage
+export {
+  createGameInDB,
+  joinGameFromDB,
+  addPlayerToDB,
+  updateGameInDB,
+  updatePlayerInDB,
+  removePlayerFromDB,
+  subscribeToGame,
+  subscribeToPlayers,
+  startPlayerExistenceCheck,
+  handlePlayerChange,
+  handleStageChange,
+  unsubscribeFromChannels
+};
 
 // =================================================================

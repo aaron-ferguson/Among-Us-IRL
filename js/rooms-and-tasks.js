@@ -49,3 +49,6 @@ const ROOMS_AND_TASKS = {
 "Put your head in the dryer for 10 seconds."
 ]
 };
+
+// Export for testing and module usage
+export { ROOMS_AND_TASKS };

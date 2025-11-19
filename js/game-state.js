@@ -56,3 +56,43 @@ const result = isGameCreator || (gameState.hostName && myPlayerName === gameStat
 console.log('isHost check - isGameCreator:', isGameCreator, '| hostName:', gameState.hostName, '| myPlayerName:', myPlayerName, '| result:', result);
 return result;
 }
+
+// Setter functions for mutable module variables (needed for ES modules)
+function setGameChannel(channel) {
+  gameChannel = channel;
+}
+
+function setPlayersChannel(channel) {
+  playersChannel = channel;
+}
+
+function setCurrentGameId(id) {
+  currentGameId = id;
+}
+
+function setMyPlayerName(name) {
+  myPlayerName = name;
+}
+
+function setIsGameCreator(value) {
+  isGameCreator = value;
+}
+
+// Export for testing and module usage
+export {
+  SUPABASE_URL,
+  SUPABASE_ANON_KEY,
+  supabaseClient,
+  gameChannel,
+  playersChannel,
+  currentGameId,
+  gameState,
+  myPlayerName,
+  isGameCreator,
+  isHost,
+  setGameChannel,
+  setPlayersChannel,
+  setCurrentGameId,
+  setMyPlayerName,
+  setIsGameCreator
+};

@@ -1,0 +1,25 @@
+{
+  "name": "among-us-irl",
+  "version": "1.0.0",
+  "description": "Among Us IRL - Single-page web application for managing in-person Among Us gameplay",
+  "type": "module",
+  "scripts": {
+    "dev": "python3 -m http.server 8000",
+    "test": "vitest",
+    "test:ui": "vitest --ui",
+    "test:coverage": "vitest --coverage",
+    "test:run": "vitest run"
+  },
+  "keywords": [
+    "among-us",
+    "game",
+    "multiplayer"
+  ],
+  "author": "Aaron Ferguson",
+  "license": "MIT",
+  "devDependencies": {
+    "@vitest/ui": "^2.1.8",
+    "happy-dom": "^15.11.6",
+    "vitest": "^2.1.8"
+  }
+}

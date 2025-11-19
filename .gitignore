@@ -4,3 +4,7 @@ node_modules/
 .env
 index.html.backup
 test-load.html
+
+# Testing
+coverage/
+.vitest/

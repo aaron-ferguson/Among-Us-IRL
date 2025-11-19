@@ -1,3 +1,7 @@
+// Import dependencies
+import { ROOMS_AND_TASKS } from './rooms-and-tasks.js';
+import { gameState } from './game-state.js';
+
 // Initialize rooms/tasks UI
 function initializeRoomsAndTasks() {
 const container = document.getElementById('rooms-tasks-container');
@@ -580,3 +584,31 @@ radioButtons.forEach(radio => {
 radio.addEventListener('change', toggleUniqueVisibility);
 });
 }
+
+// Export for testing and module usage
+export {
+  initializeRoomsAndTasks,
+  renderAllRooms,
+  renderRoom,
+  renderTask,
+  isMobileDevice,
+  toggleEditMode,
+  enableSwipeHandlers,
+  disableSwipeHandlers,
+  setupSwipeHandlers,
+  handleTaskDelete,
+  enableDragAndDrop,
+  disableDragAndDrop,
+  moveTask,
+  moveTaskToRoom,
+  showAddRoomModal,
+  addRoom,
+  deleteRoom,
+  showAddTaskModal,
+  addTask,
+  deleteTask,
+  toggleCollapsible,
+  toggleUniqueVisibility,
+  setupUniqueRadioListeners,
+  updateMeetingRoomDropdown
+};

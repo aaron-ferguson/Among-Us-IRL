@@ -1,3 +1,38 @@
+// Import dependencies
+import {
+  initializeRoomsAndTasks,
+  setupUniqueRadioListeners,
+  updateMeetingRoomDropdown,
+  toggleEditMode,
+  showAddRoomModal,
+  addRoom,
+  deleteRoom,
+  showAddTaskModal,
+  addTask,
+  deleteTask,
+  toggleCollapsible
+} from './room-task-manager.js';
+import {
+  gameState,
+  supabaseClient
+} from './game-state.js';
+import {
+  joinGameFromDB
+} from './supabase-backend.js';
+import * as gameLogic from './game-logic.js';
+
+// Expose functions to global scope for onclick handlers
+Object.assign(window, gameLogic, {
+  toggleEditMode,
+  showAddRoomModal,
+  addRoom,
+  deleteRoom,
+  showAddTaskModal,
+  addTask,
+  deleteTask,
+  toggleCollapsible
+});
+
 // Initialize on load
 window.onload = async () => {
 initializeRoomsAndTasks();
@@ -27,9 +62,9 @@ document.getElementById('imposter-count-display').textContent = gameState.settin
 // Show appropriate stage
 if (gameState.stage === 'waiting') {
 document.getElementById('waiting-room').classList.remove('hidden');
-generateQRCode();
-updateJoinSection();
-updateLobby();
+gameLogic.generateQRCode();
+gameLogic.updateJoinSection();
+gameLogic.updateLobby();
 } else if (gameState.stage === 'playing') {
 document.getElementById('game-phase').classList.remove('hidden');
 // Don't call displayGameplay() yet - player needs to join first

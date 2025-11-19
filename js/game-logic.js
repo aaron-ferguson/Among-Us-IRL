@@ -1,3 +1,27 @@
+// Import dependencies
+import {
+  gameState,
+  supabaseClient,
+  currentGameId,
+  myPlayerName,
+  isGameCreator,
+  isHost,
+  setMyPlayerName,
+  setIsGameCreator,
+  setCurrentGameId
+} from './game-state.js';
+import {
+  createGameInDB,
+  joinGameFromDB,
+  addPlayerToDB,
+  updateGameInDB,
+  updatePlayerInDB,
+  removePlayerFromDB,
+  subscribeToGame,
+  subscribeToPlayers,
+  unsubscribeFromChannels
+} from './supabase-backend.js';
+
 // ==================== MENU NAVIGATION ====================
 
 function showCreateGame() {
@@ -66,8 +90,8 @@ playerExistenceInterval = null;
 unsubscribeFromChannels();
 
 // Clear player state
-myPlayerName = null;
-isGameCreator = false;
+setMyPlayerName(null);
+setIsGameCreator(false);
 
 // Clear game state
 gameState = {
@@ -165,7 +189,7 @@ return;
 }
 
 // Mark this device as the game creator FIRST (before any UI updates that check host status)
-isGameCreator = true;
+setIsGameCreator(true);
 console.log('Game created - isGameCreator set to true');
 
 // Generate room code
@@ -268,7 +292,7 @@ return;
 const existingPlayer = gameState.players.find(p => p.name.toLowerCase() === name.toLowerCase());
 if (existingPlayer) {
 // Reconnect as this player
-myPlayerName = existingPlayer.name;
+setMyPlayerName(existingPlayer.name);
 nameInput.value = '';
 updateJoinSection();
 console.log('Reconnected as existing player:', name);
@@ -293,7 +317,7 @@ tasksCompleted: 0
 });
 
 // Track this device's player
-myPlayerName = name;
+setMyPlayerName(name);
 console.log('Player joined:', name, '| isGameCreator:', isGameCreator, '| currentGameId:', currentGameId, '| current hostName:', gameState.hostName);
 
 // If this device created the game and there's no host yet, set this player as host
@@ -490,7 +514,7 @@ return;
 // Update the player's name
 const oldName = player.name;
 player.name = trimmedName;
-myPlayerName = trimmedName;
+setMyPlayerName(trimmedName);
 
 // Mark player as ready after they edit their name
 player.ready = true;
@@ -516,7 +540,7 @@ const playerName = myPlayerName;
 if (playerIndex !== -1) {
 gameState.players.splice(playerIndex, 1);
 }
-myPlayerName = null;
+setMyPlayerName(null);
 updateJoinSection();
 updateLobby();
 
@@ -1881,7 +1905,7 @@ if (gameData) {
 console.log('Joined new game session:', newRoomCode);
 
 // Restore player name for name confirmation
-myPlayerName = savedPlayerName;
+setMyPlayerName(savedPlayerName);
 
 // Show waiting room
 document.getElementById('waiting-room').classList.remove('hidden');
@@ -1949,7 +1973,7 @@ alert('Please enter a name');
 return;
 }
 nameToUse = newName;
-myPlayerName = newName; // Update the stored name
+setMyPlayerName(newName); // Update the stored name
 console.log('Name changed to:', nameToUse);
 }
 
@@ -2001,7 +2025,7 @@ updateLobby();
 startPlayerExistenceCheck();
 }
 
-function leaveGame() {
+function declineJoinGame() {
 console.log('Player chose to leave game');
 
 // Hide the modal
@@ -2029,4 +2053,67 @@ if (confirm('Are you sure you want to end this session?')) {
 location.reload();
 }
 }
+
+// Export for testing and module usage
+export {
+  showCreateGame,
+  showJoinGame,
+  hideJoinGame,
+  joinGameFromMenu,
+  createGame,
+  joinGame,
+  returnToMenu,
+  getGameURL,
+  copyGameURL,
+  generateQRCode,
+  generateRoomCode,
+  updateJoinSection,
+  markPlayerReady,
+  editPlayerName,
+  kickPlayer,
+  leaveGame,
+  updateLobby,
+  editSettings,
+  startGame,
+  displayGameplay,
+  renderPlayerTasks,
+  toggleTaskComplete,
+  toggleRole,
+  renderHostPlayerStatus,
+  togglePlayerAlive,
+  confirmTogglePlayerAlive,
+  eliminatePlayer,
+  toggleEliminationControls,
+  closeEliminatedModal,
+  updateHostControls,
+  showInstructions,
+  closeInstructions,
+  callMeeting,
+  acknowledgeMeeting,
+  playAlarmSound,
+  startDiscussionTimer,
+  updateReadyStatus,
+  hostStartVoting,
+  startVoting,
+  selectVote,
+  submitVote,
+  tallyVotes,
+  displayVoteResults,
+  resumeGame,
+  checkWinConditions,
+  checkCrewmateVictory,
+  endGame,
+  populateGameSummary,
+  closeVictoryScreen,
+  closeDefeatScreen,
+  newGameSameSettings,
+  showNameConfirmation,
+  confirmPlayerName,
+  editMyName,
+  declineJoinGame,
+  acceptNewGameInvitation,
+  declineNewGameInvitation,
+  newGameNewSettings,
+  endSession
+};
 
