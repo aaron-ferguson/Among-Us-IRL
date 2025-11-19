@@ -96,7 +96,7 @@ setMyPlayerName(null);
 setIsGameCreator(false);
 
 // Clear game state
-gameState = {
+Object.assign(gameState, {
 stage: 'setup',
 roomCode: '',
 hostName: null,
@@ -121,7 +121,7 @@ meetingCaller: null,
 meetingType: null,
 gameEnded: false,
 winner: null
-};
+});
 
 // Hide all phases, show menu
 document.getElementById('setup-phase').classList.add('hidden');
