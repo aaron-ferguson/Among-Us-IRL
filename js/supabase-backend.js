@@ -9,12 +9,14 @@ import {
   currentGameId,
   myPlayerName,
   isGameCreator,
+  playerExistenceInterval,
   isHost,
   setGameChannel,
   setPlayersChannel,
   setCurrentGameId,
   setMyPlayerName,
-  setIsGameCreator
+  setIsGameCreator,
+  setPlayerExistenceInterval
 } from './game-state.js';
 
 async function createGameInDB() {
@@ -387,20 +389,20 @@ handlePlayerChange(payload);
 console.log('✓ Subscribed to player updates for game:', currentGameId);
 }
 
-let playerExistenceInterval = null;
-
 function startPlayerExistenceCheck() {
 // Clear any existing interval
 if (playerExistenceInterval) {
 clearInterval(playerExistenceInterval);
+setPlayerExistenceInterval(null);
 }
 
 // Wait 3 seconds before starting polling to ensure player is added to DB first
 setTimeout(() => {
 // Check every 2 seconds if this player still exists in the database
-playerExistenceInterval = setInterval(async () => {
+setPlayerExistenceInterval(setInterval(async () => {
 if (!myPlayerName || !supabaseClient || !currentGameId) {
 clearInterval(playerExistenceInterval);
+setPlayerExistenceInterval(null);
 return;
 }
 
@@ -416,6 +418,7 @@ if (error || !data) {
 // Player no longer exists in database - we were kicked!
 console.log('Player existence check: Player not found in DB - we were kicked!');
 clearInterval(playerExistenceInterval);
+setPlayerExistenceInterval(null);
 // Don't show "kicked" message if this is the host (they're likely starting a new game)
 if (!isHost()) {
 alert('You have been removed from the game by the host.');
@@ -425,13 +428,14 @@ returnToMenu();
 } catch (err) {
 console.log('Player existence check error (likely kicked):', err);
 clearInterval(playerExistenceInterval);
+setPlayerExistenceInterval(null);
 // Don't show "kicked" message if this is the host (they're likely starting a new game)
 if (!isHost()) {
 alert('You have been removed from the game by the host.');
 }
 returnToMenu();
 }
-}, 2000);
+}, 2000));
 }, 3000);
 }
 

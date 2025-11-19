@@ -5,10 +5,12 @@ import {
   currentGameId,
   myPlayerName,
   isGameCreator,
+  playerExistenceInterval,
   isHost,
   setMyPlayerName,
   setIsGameCreator,
-  setCurrentGameId
+  setCurrentGameId,
+  setPlayerExistenceInterval
 } from './game-state.js';
 import {
   createGameInDB,
@@ -83,7 +85,7 @@ function returnToMenu() {
 // Stop player existence polling
 if (playerExistenceInterval) {
 clearInterval(playerExistenceInterval);
-playerExistenceInterval = null;
+setPlayerExistenceInterval(null);
 }
 
 // Unsubscribe from channels FIRST to prevent callbacks from firing
@@ -1878,7 +1880,7 @@ return;
 // Stop player existence polling for old game
 if (playerExistenceInterval) {
 clearInterval(playerExistenceInterval);
-playerExistenceInterval = null;
+setPlayerExistenceInterval(null);
 }
 
 // Unsubscribe from old game channels

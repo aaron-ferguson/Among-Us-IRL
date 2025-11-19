@@ -48,6 +48,7 @@ winner: null
 // Track the player name for this device
 let myPlayerName = null;
 let isGameCreator = false; // True if this device created the game
+let playerExistenceInterval = null; // Interval for checking player existence
 
 // Check if this device is the host
 function isHost() {
@@ -78,6 +79,10 @@ function setIsGameCreator(value) {
   isGameCreator = value;
 }
 
+function setPlayerExistenceInterval(interval) {
+  playerExistenceInterval = interval;
+}
+
 // Export for testing and module usage
 export {
   SUPABASE_URL,
@@ -89,10 +94,12 @@ export {
   gameState,
   myPlayerName,
   isGameCreator,
+  playerExistenceInterval,
   isHost,
   setGameChannel,
   setPlayersChannel,
   setCurrentGameId,
   setMyPlayerName,
-  setIsGameCreator
+  setIsGameCreator,
+  setPlayerExistenceInterval
 };
