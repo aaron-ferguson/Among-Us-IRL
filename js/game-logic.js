@@ -185,6 +185,16 @@ alert('Minimum players cannot be greater than maximum players!');
 return;
 }
 
+if (gameState.settings.imposterCount < 1) {
+alert('There must be at least 1 imposter!');
+return;
+}
+
+if (gameState.settings.imposterCount >= gameState.settings.maxPlayers) {
+alert('Number of imposters must be less than maximum players!');
+return;
+}
+
 if (!gameState.settings.meetingRoom) {
 alert('Please select a meeting room!');
 return;
@@ -583,6 +593,17 @@ alert('Only the host can start the game!');
 return;
 }
 
+// Validate imposter count
+if (gameState.settings.imposterCount < 1) {
+alert('Cannot start game: There must be at least 1 imposter!');
+return;
+}
+
+if (gameState.settings.imposterCount >= gameState.players.length) {
+alert('Cannot start game: Number of imposters must be less than total players!');
+return;
+}
+
 // Assign roles
 const shuffled = [...gameState.players].sort(() => Math.random() - 0.5);
 const imposterNames = shuffled.slice(0, gameState.settings.imposterCount).map(p => p.name);
@@ -789,12 +810,13 @@ checkCrewmateVictory();
 }
 
 function checkCrewmateVictory() {
-// Count total tasks and completed tasks for all crewmates
+// Count total tasks and completed tasks for ALL crewmates (including eliminated)
+// Eliminated crewmates' completed tasks still count toward victory
 let totalCrewmateTasks = 0;
 let completedCrewmateTasks = 0;
 
 gameState.players.forEach(player => {
-if (player.role === 'crewmate' && player.alive) {
+if (player.role === 'crewmate') {
 totalCrewmateTasks += player.tasks.length;
 completedCrewmateTasks += player.tasksCompleted || 0;
 }
@@ -1496,6 +1518,12 @@ console.log('=== Win Condition Check ===');
 console.log(`Alive imposters: ${aliveImposters}/${totalImposters}`);
 console.log(`Alive crewmates: ${aliveCrewmates}/${totalCrewmates}`);
 console.log(`All players:`, gameState.players.map(p => ({ name: p.name, role: p.role, alive: p.alive })));
+
+// Error check: Game malfunction if no imposters existed
+if (totalImposters === 0) {
+console.error('ERROR: Game started with no imposters - this should never happen!');
+throw new Error('Game malfunction: No imposters were assigned at game start');
+}
 
 // Crewmates win if all imposters are eliminated (and there were imposters to begin with)
 if (aliveImposters === 0 && totalImposters > 0) {
