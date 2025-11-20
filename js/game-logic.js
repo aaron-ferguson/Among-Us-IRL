@@ -1228,6 +1228,12 @@ document.getElementById('vote-timer').textContent = 'Waiting for voting to compl
 }
 
 let selectedVote = null;
+
+// Setter function for selectedVote (needed for testing)
+function setSelectedVote(value) {
+  selectedVote = value;
+}
+
 function selectVote(playerName, element) {
 document.querySelectorAll('.vote-option').forEach(opt => opt.classList.remove('selected'));
 element.classList.add('selected');
@@ -2126,6 +2132,7 @@ export {
   hostStartVoting,
   startVoting,
   selectVote,
+  setSelectedVote,
   submitVote,
   tallyVotes,
   displayVoteResults,

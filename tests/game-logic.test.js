@@ -9,6 +9,11 @@ import {
   leaveGame,
   startGame,
   returnToMenu,
+  selectVote,
+  setSelectedVote,
+  submitVote,
+  tallyVotes,
+  displayVoteResults,
   checkWinConditions,
   checkCrewmateVictory,
   endGame
@@ -1037,7 +1042,341 @@ describe('Game State Transitions', () => {
   })
 })
 
+describe('Voting Logic', () => {
+  beforeEach(() => {
+    // Reset voting state
+    gameState.votes = {}
+    gameState.votesTallied = false
+    gameState.settings.voteResults = null
+    gameState.players = []
+    gameState.gameEnded = false
+    gameState.winner = null
+    setMyPlayerName(null)
+    setSelectedVote(null)  // Reset selectedVote between tests
+
+    // Mock DOM elements
+    global.document = {
+      getElementById: vi.fn((id) => ({
+        classList: { add: vi.fn(), remove: vi.fn() },
+        disabled: false,
+        innerHTML: '',
+        textContent: ''
+      })),
+      querySelectorAll: vi.fn(() => []),
+      createElement: vi.fn(() => ({
+        style: {},
+        classList: { add: vi.fn(), remove: vi.fn() },
+        appendChild: vi.fn()
+      })),
+      body: { innerHTML: '' }
+    }
+
+    global.alert = vi.fn()
+    vi.clearAllMocks()
+  })
+
+  describe('tallyVotes', () => {
+    it('should count votes correctly', async () => {
+      gameState.votes = {
+        'Player1': 'Player3',
+        'Player2': 'Player3',
+        'Player3': 'Player1',
+        'Player4': 'Player1'
+      }
+      gameState.players = [
+        { name: 'Player1', role: 'crewmate', alive: true },
+        { name: 'Player2', role: 'crewmate', alive: true },
+        { name: 'Player3', role: 'imposter', alive: true },
+        { name: 'Player4', role: 'crewmate', alive: true }
+      ]
+
+      await tallyVotes()
+
+      expect(gameState.settings.voteResults.voteCounts).toEqual({
+        'Player3': 2,
+        'Player1': 2
+      })
+    })
+
+    it('should eliminate player with most votes', async () => {
+      gameState.votes = {
+        'Player1': 'Player3',
+        'Player2': 'Player3',
+        'Player3': 'Player1',
+        'Player4': 'Player3'
+      }
+      gameState.players = [
+        { name: 'Player1', role: 'crewmate', alive: true },
+        { name: 'Player2', role: 'crewmate', alive: true },
+        { name: 'Player3', role: 'imposter', alive: true },
+        { name: 'Player4', role: 'crewmate', alive: true }
+      ]
+
+      await tallyVotes()
+
+      const player3 = gameState.players.find(p => p.name === 'Player3')
+      expect(player3.alive).toBe(false)
+      expect(gameState.settings.voteResults.eliminatedPlayer).toBe('Player3')
+    })
+
+    it('should detect tie when multiple players have same max votes', async () => {
+      gameState.votes = {
+        'Player1': 'Player3',
+        'Player2': 'Player4',
+        'Player3': 'Player4',
+        'Player4': 'Player3'
+      }
+      gameState.players = [
+        { name: 'Player1', role: 'crewmate', alive: true },
+        { name: 'Player2', role: 'crewmate', alive: true },
+        { name: 'Player3', role: 'imposter', alive: true },
+        { name: 'Player4', role: 'crewmate', alive: true }
+      ]
+
+      await tallyVotes()
+
+      expect(gameState.settings.voteResults.isTie).toBe(true)
+      expect(gameState.settings.voteResults.eliminatedPlayer).toBeNull()
+      // All players should remain alive in a tie
+      gameState.players.forEach(player => {
+        expect(player.alive).toBe(true)
+      })
+    })
+
+    it('should handle all skip votes (no elimination)', async () => {
+      gameState.votes = {
+        'Player1': 'skip',
+        'Player2': 'skip',
+        'Player3': 'skip',
+        'Player4': 'skip'
+      }
+      gameState.players = [
+        { name: 'Player1', role: 'crewmate', alive: true },
+        { name: 'Player2', role: 'crewmate', alive: true },
+        { name: 'Player3', role: 'imposter', alive: true },
+        { name: 'Player4', role: 'crewmate', alive: true }
+      ]
+
+      await tallyVotes()
+
+      expect(gameState.settings.voteResults.eliminatedPlayer).toBeNull()
+      gameState.players.forEach(player => {
+        expect(player.alive).toBe(true)
+      })
+    })
+
+    it('should handle mixed skip and player votes', async () => {
+      gameState.votes = {
+        'Player1': 'Player3',
+        'Player2': 'skip',
+        'Player3': 'skip',
+        'Player4': 'Player3'
+      }
+      gameState.players = [
+        { name: 'Player1', role: 'crewmate', alive: true },
+        { name: 'Player2', role: 'crewmate', alive: true },
+        { name: 'Player3', role: 'imposter', alive: true },
+        { name: 'Player4', role: 'crewmate', alive: true }
+      ]
+
+      await tallyVotes()
+
+      const player3 = gameState.players.find(p => p.name === 'Player3')
+      expect(player3.alive).toBe(false)
+      expect(gameState.settings.voteResults.voteCounts).toEqual({
+        'Player3': 2,
+        'skip': 2
+      })
+    })
+
+    it('should prevent double tallying', async () => {
+      gameState.votes = {
+        'Player1': 'Player2',
+        'Player2': 'Player1'
+      }
+      gameState.players = [
+        { name: 'Player1', role: 'crewmate', alive: true },
+        { name: 'Player2', role: 'imposter', alive: true }
+      ]
+
+      await tallyVotes()
+      const firstResult = { ...gameState.settings.voteResults }
+
+      // Try to tally again
+      gameState.votes['Player3'] = 'Player1'
+      await tallyVotes()
+
+      // Results should not change
+      expect(gameState.settings.voteResults).toEqual(firstResult)
+    })
+
+    it('should handle unanimous vote', async () => {
+      gameState.votes = {
+        'Player1': 'Player3',
+        'Player2': 'Player3',
+        'Player3': 'Player1', // Even the target votes
+        'Player4': 'Player3'
+      }
+      gameState.players = [
+        { name: 'Player1', role: 'crewmate', alive: true },
+        { name: 'Player2', role: 'crewmate', alive: true },
+        { name: 'Player3', role: 'imposter', alive: true },
+        { name: 'Player4', role: 'crewmate', alive: true }
+      ]
+
+      await tallyVotes()
+
+      const player3 = gameState.players.find(p => p.name === 'Player3')
+      expect(player3.alive).toBe(false)
+      expect(gameState.settings.voteResults.voteCounts['Player3']).toBe(3)
+    })
+
+    it('should store vote results for sync', async () => {
+      gameState.votes = {
+        'Player1': 'Player2',
+        'Player2': 'Player1'
+      }
+      gameState.players = [
+        { name: 'Player1', role: 'crewmate', alive: true },
+        { name: 'Player2', role: 'imposter', alive: true }
+      ]
+
+      await tallyVotes()
+
+      expect(gameState.settings.voteResults).toBeDefined()
+      expect(gameState.settings.voteResults.voteCounts).toBeDefined()
+      expect(gameState.settings.voteResults.eliminatedPlayer).toBeDefined()
+      expect(gameState.settings.voteResults.isTie).toBeDefined()
+    })
+
+    it('should eliminate player with most non-skip votes even if skip has more votes overall', async () => {
+      gameState.votes = {
+        'Player1': 'skip',
+        'Player2': 'skip',
+        'Player3': 'skip',
+        'Player4': 'Player2'
+      }
+      gameState.players = [
+        { name: 'Player1', role: 'crewmate', alive: true },
+        { name: 'Player2', role: 'imposter', alive: true },
+        { name: 'Player3', role: 'crewmate', alive: true },
+        { name: 'Player4', role: 'crewmate', alive: true }
+      ]
+
+      await tallyVotes()
+
+      // Player2 has the most non-skip votes (1), so they're eliminated
+      // even though skip has more votes overall (3)
+      expect(gameState.settings.voteResults.eliminatedPlayer).toBe('Player2')
+      const player2 = gameState.players.find(p => p.name === 'Player2')
+      expect(player2.alive).toBe(false)
+    })
+
+    it('should handle three-way tie', async () => {
+      gameState.votes = {
+        'Player1': 'Player4',
+        'Player2': 'Player5',
+        'Player3': 'Player6',
+        'Player4': 'Player4',
+        'Player5': 'Player5',
+        'Player6': 'Player6'
+      }
+      gameState.players = [
+        { name: 'Player1', role: 'crewmate', alive: true },
+        { name: 'Player2', role: 'crewmate', alive: true },
+        { name: 'Player3', role: 'crewmate', alive: true },
+        { name: 'Player4', role: 'imposter', alive: true },
+        { name: 'Player5', role: 'crewmate', alive: true },
+        { name: 'Player6', role: 'crewmate', alive: true }
+      ]
+
+      await tallyVotes()
+
+      expect(gameState.settings.voteResults.isTie).toBe(true)
+      expect(gameState.settings.voteResults.eliminatedPlayer).toBeNull()
+      gameState.players.forEach(player => {
+        expect(player.alive).toBe(true)
+      })
+    })
+  })
+
+  describe('selectVote', () => {
+    it('should mark selected vote option', () => {
+      const mockElement = {
+        classList: { add: vi.fn(), remove: vi.fn() }
+      }
+      const mockOtherOption = {
+        classList: { add: vi.fn(), remove: vi.fn() }
+      }
+
+      global.document.querySelectorAll = vi.fn(() => [mockElement, mockOtherOption])
+      global.document.getElementById = vi.fn(() => ({ disabled: true }))
+
+      selectVote('Player1', mockElement)
+
+      expect(mockElement.classList.add).toHaveBeenCalledWith('selected')
+      expect(mockOtherOption.classList.remove).toHaveBeenCalledWith('selected')
+    })
+
+    it('should enable submit button after selecting vote', () => {
+      const mockElement = {
+        classList: { add: vi.fn(), remove: vi.fn() }
+      }
+      const mockSubmitBtn = { disabled: true }
+
+      global.document.querySelectorAll = vi.fn(() => [mockElement])
+      global.document.getElementById = vi.fn((id) => {
+        if (id === 'submit-vote-btn') return mockSubmitBtn
+        return null
+      })
+
+      selectVote('Player1', mockElement)
+
+      expect(mockSubmitBtn.disabled).toBe(false)
+    })
+  })
+
+  describe('submitVote (offline mode)', () => {
+    it('should record vote in local state when offline', async () => {
+      setMyPlayerName('Player1')
+      gameState.votes = {}
+
+      // Mock vote options for selectVote to work
+      const mockVoteOption = {
+        classList: { add: vi.fn(), remove: vi.fn() }
+      }
+
+      global.document.querySelectorAll = vi.fn(() => [mockVoteOption])
+      global.document.getElementById = vi.fn(() => ({
+        disabled: false,
+        classList: { add: vi.fn(), remove: vi.fn() }
+      }))
+
+      // Call selectVote to set the vote (this sets the module-level selectedVote variable)
+      selectVote('Player2', mockVoteOption)
+
+      await submitVote()
+
+      expect(gameState.votes['Player1']).toBe('Player2')
+    })
+
+    it('should record skip vote when no player selected', async () => {
+      setMyPlayerName('Player1')
+      gameState.votes = {}
+
+      global.document.getElementById = vi.fn(() => ({
+        disabled: false,
+        classList: { add: vi.fn(), remove: vi.fn() }
+      }))
+
+      // Don't call selectVote - selectedVote will be null
+      await submitVote()
+
+      expect(gameState.votes['Player1']).toBe('skip')
+    })
+  })
+})
+
 // TODO: Add more test suites for:
-// - Voting logic
 // - Task toggling
 // - New session creation (newGameSameSettings, newGameNewSettings)
