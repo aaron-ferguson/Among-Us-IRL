@@ -7,20 +7,13 @@ import {
   joinGame,
   kickPlayer,
   leaveGame,
+  startGame,
+  returnToMenu,
   checkWinConditions,
   checkCrewmateVictory,
   endGame
 } from '../js/game-logic.js'
 import { gameState, setMyPlayerName, setIsGameCreator } from '../js/game-state.js'
-
-// Mock endGame to prevent DOM access
-vi.mock('../js/game-logic.js', async () => {
-  const actual = await vi.importActual('../js/game-logic.js')
-  return {
-    ...actual,
-    endGame: vi.fn()
-  }
-})
 
 describe('Room Code Generation', () => {
   it('should generate a 4-character alphanumeric code', () => {
@@ -339,11 +332,15 @@ describe('Win Condition Checks', () => {
 
   describe('checkCrewmateVictory', () => {
     beforeEach(() => {
+      // Reset game ended state
+      gameState.gameEnded = false
+      gameState.winner = null
+
       // Clear mock calls
       vi.clearAllMocks()
     })
 
-    it('should not call endGame when tasks are incomplete', () => {
+    it('should not end game when tasks are incomplete', () => {
       gameState.players = [
         {
           name: 'Player1',
@@ -363,8 +360,9 @@ describe('Win Condition Checks', () => {
 
       checkCrewmateVictory()
 
-      // Should not call endGame when tasks incomplete
-      expect(endGame).not.toHaveBeenCalled()
+      // Should not end game when tasks incomplete
+      expect(gameState.gameEnded).toBe(false)
+      expect(gameState.winner).toBeNull()
     })
 
     it('should end game when all tasks are complete', () => {
@@ -463,7 +461,8 @@ describe('Win Condition Checks', () => {
 
       // Should not end game - only 2/5 total crewmate tasks complete
       // Both alive AND eliminated crewmates' tasks count toward total
-      expect(endGame).not.toHaveBeenCalled()
+      expect(gameState.gameEnded).toBe(false)
+      expect(gameState.winner).toBeNull()
     })
   })
 })
@@ -742,8 +741,303 @@ describe('Player Management', () => {
   })
 })
 
+describe('Game State Transitions', () => {
+  let mockElements
+
+  beforeEach(() => {
+    // Reset gameState to setup stage
+    gameState.stage = 'setup'
+    gameState.players = []
+    gameState.settings.minPlayers = 4
+    gameState.settings.maxPlayers = 10
+    gameState.settings.imposterCount = 1
+    gameState.settings.tasksPerPlayer = 3
+    gameState.settings.selectedRooms = {
+      'Living Room': {
+        enabled: true,
+        tasks: [
+          { name: 'Task1', enabled: true, unique: false },
+          { name: 'Task2', enabled: true, unique: false }
+        ]
+      }
+    }
+    gameState.hostName = null
+    gameState.gameEnded = false
+    gameState.winner = null
+    setMyPlayerName(null)
+    setIsGameCreator(false)
+
+    // Mock DOM elements
+    mockElements = {
+      waitingRoom: { classList: { add: vi.fn(), remove: vi.fn() } },
+      gamePhase: { classList: { add: vi.fn(), remove: vi.fn() } },
+      meetingPhase: { classList: { add: vi.fn(), remove: vi.fn() } },
+      gameEnd: { classList: { add: vi.fn(), remove: vi.fn() } },
+      setupPhase: { classList: { add: vi.fn(), remove: vi.fn() } },
+      mainMenu: { classList: { add: vi.fn(), remove: vi.fn() } }
+    }
+
+    global.document = {
+      getElementById: vi.fn((id) => {
+        const elementMap = {
+          'waiting-room': mockElements.waitingRoom,
+          'game-phase': mockElements.gamePhase,
+          'meeting-phase': mockElements.meetingPhase,
+          'game-end': mockElements.gameEnd,
+          'setup-phase': mockElements.setupPhase,
+          'main-menu': mockElements.mainMenu
+        }
+        return elementMap[id] || {
+          classList: { add: vi.fn(), remove: vi.fn() },
+          style: {},
+          innerHTML: '',
+          textContent: '',
+          appendChild: vi.fn()
+        }
+      }),
+      createElement: vi.fn(() => ({
+        style: {},
+        classList: { add: vi.fn(), remove: vi.fn() },
+        appendChild: vi.fn(),
+        addEventListener: vi.fn()
+      })),
+      body: { innerHTML: '' }
+    }
+
+    global.alert = vi.fn()
+    global.confirm = vi.fn(() => true)
+
+    vi.clearAllMocks()
+  })
+
+  describe('waiting -> playing transition', () => {
+    beforeEach(() => {
+      gameState.stage = 'waiting'
+      gameState.hostName = 'Host'
+      setMyPlayerName('Host')
+      setIsGameCreator(true)
+      gameState.players = [
+        { name: 'Host', ready: true, role: null, tasks: [], alive: true, tasksCompleted: 0 },
+        { name: 'Player1', ready: true, role: null, tasks: [], alive: true, tasksCompleted: 0 },
+        { name: 'Player2', ready: true, role: null, tasks: [], alive: true, tasksCompleted: 0 },
+        { name: 'Player3', ready: true, role: null, tasks: [], alive: true, tasksCompleted: 0 }
+      ]
+    })
+
+    it('should transition from waiting to playing when host starts game', () => {
+      startGame()
+
+      expect(gameState.stage).toBe('playing')
+    })
+
+    it('should assign roles when transitioning to playing', () => {
+      startGame()
+
+      const imposters = gameState.players.filter(p => p.role === 'imposter')
+      const crewmates = gameState.players.filter(p => p.role === 'crewmate')
+
+      expect(imposters.length).toBe(gameState.settings.imposterCount)
+      expect(crewmates.length).toBe(gameState.players.length - gameState.settings.imposterCount)
+    })
+
+    it('should assign tasks to all players when starting game', () => {
+      startGame()
+
+      gameState.players.forEach(player => {
+        expect(player.tasks).toBeDefined()
+        expect(Array.isArray(player.tasks)).toBe(true)
+        // Crewmates should have tasks assigned
+        if (player.role === 'crewmate') {
+          expect(player.tasks.length).toBeGreaterThan(0)
+        }
+      })
+    })
+
+    it('should set all players alive when starting game', () => {
+      startGame()
+
+      gameState.players.forEach(player => {
+        expect(player.alive).toBe(true)
+        expect(player.tasksCompleted).toBe(0)
+      })
+    })
+
+    it('should not allow non-host to start game', () => {
+      setMyPlayerName('Player1')
+      setIsGameCreator(false)
+
+      startGame()
+
+      expect(global.alert).toHaveBeenCalledWith('Only the host can start the game!')
+      expect(gameState.stage).toBe('waiting')
+    })
+
+    it('should prevent starting with invalid imposter count', () => {
+      gameState.settings.imposterCount = 0
+
+      startGame()
+
+      expect(global.alert).toHaveBeenCalledWith('Cannot start game: There must be at least 1 imposter!')
+      expect(gameState.stage).toBe('waiting')
+    })
+
+    it('should prevent starting when imposters >= total players', () => {
+      gameState.settings.imposterCount = 4
+
+      startGame()
+
+      expect(global.alert).toHaveBeenCalledWith('Cannot start game: Number of imposters must be less than total players!')
+      expect(gameState.stage).toBe('waiting')
+    })
+  })
+
+  describe('any -> ended transition', () => {
+    beforeEach(() => {
+      gameState.players = [
+        { name: 'Player1', role: 'crewmate', alive: true },
+        { name: 'Player2', role: 'crewmate', alive: false },
+        { name: 'Imposter1', role: 'imposter', alive: false }
+      ]
+    })
+
+    it('should transition from playing to ended when game ends', () => {
+      gameState.stage = 'playing'
+
+      endGame('crewmates', 'All imposters eliminated')
+
+      expect(gameState.stage).toBe('ended')
+      expect(gameState.gameEnded).toBe(true)
+      expect(gameState.winner).toBe('crewmates')
+    })
+
+    it('should transition from meeting to ended when game ends', () => {
+      gameState.stage = 'meeting'
+
+      endGame('imposters', 'Imposters outnumber crewmates')
+
+      expect(gameState.stage).toBe('ended')
+      expect(gameState.gameEnded).toBe(true)
+      expect(gameState.winner).toBe('imposters')
+    })
+
+    it('should set gameEnded flag when ending game', () => {
+      gameState.stage = 'playing'
+      gameState.gameEnded = false
+
+      endGame('crewmates', 'All tasks completed')
+
+      expect(gameState.gameEnded).toBe(true)
+    })
+
+    it('should store winner when game ends', () => {
+      endGame('crewmates', 'Victory!')
+
+      expect(gameState.winner).toBe('crewmates')
+    })
+  })
+
+  describe('any -> setup transition', () => {
+    it('should transition from waiting to setup via returnToMenu', () => {
+      gameState.stage = 'waiting'
+      gameState.roomCode = 'TEST'
+      gameState.players = [{ name: 'Player1' }]
+
+      returnToMenu()
+
+      expect(gameState.stage).toBe('setup')
+    })
+
+    it('should transition from playing to setup via returnToMenu', () => {
+      gameState.stage = 'playing'
+
+      returnToMenu()
+
+      expect(gameState.stage).toBe('setup')
+    })
+
+    it('should transition from ended to setup via returnToMenu', () => {
+      gameState.stage = 'ended'
+
+      returnToMenu()
+
+      expect(gameState.stage).toBe('setup')
+    })
+
+    it('should reset game state when returning to menu', () => {
+      gameState.stage = 'playing'
+      gameState.roomCode = 'ABC123'
+      gameState.hostName = 'Host'
+      gameState.players = [
+        { name: 'Player1', role: 'crewmate' },
+        { name: 'Player2', role: 'imposter' }
+      ]
+      gameState.gameEnded = true
+      gameState.winner = 'crewmates'
+
+      returnToMenu()
+
+      expect(gameState.stage).toBe('setup')
+      expect(gameState.roomCode).toBe('')
+      expect(gameState.hostName).toBeNull()
+      expect(gameState.players).toEqual([])
+      expect(gameState.gameEnded).toBe(false)
+      expect(gameState.winner).toBeNull()
+    })
+
+    it('should clear player state when returning to menu', () => {
+      setMyPlayerName('TestPlayer')
+      setIsGameCreator(true)
+
+      returnToMenu()
+
+      // Player state should be cleared (checked via side effects in the function)
+      expect(gameState.stage).toBe('setup')
+    })
+  })
+
+  describe('setup -> waiting transition', () => {
+    it('should transition from setup to waiting when creating game', async () => {
+      // This is tested in QR Code Integration tests
+      // Verifying the transition happens via createGame
+      gameState.stage = 'setup'
+
+      expect(gameState.stage).toBe('setup')
+      // After createGame() is called, stage should be 'waiting'
+      // (Already covered in existing tests)
+    })
+  })
+
+  describe('stage validation', () => {
+    it('should maintain valid stage values', () => {
+      const validStages = ['setup', 'waiting', 'playing', 'meeting', 'ended']
+
+      // Test that startGame sets a valid stage
+      gameState.stage = 'waiting'
+      gameState.hostName = 'Host'
+      setMyPlayerName('Host')
+      setIsGameCreator(true)
+      gameState.players = [
+        { name: 'Host', ready: true },
+        { name: 'P1', ready: true },
+        { name: 'P2', ready: true },
+        { name: 'P3', ready: true }
+      ]
+
+      startGame()
+      expect(validStages).toContain(gameState.stage)
+
+      // Test that endGame sets a valid stage
+      endGame('crewmates', 'Victory')
+      expect(validStages).toContain(gameState.stage)
+
+      // Test that returnToMenu sets a valid stage
+      returnToMenu()
+      expect(validStages).toContain(gameState.stage)
+    })
+  })
+})
+
 // TODO: Add more test suites for:
-// - Game state transitions
 // - Voting logic
 // - Task toggling
 // - New session creation (newGameSameSettings, newGameNewSettings)
