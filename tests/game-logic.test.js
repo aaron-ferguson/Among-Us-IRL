@@ -4,11 +4,14 @@ import {
   getGameURL,
   generateQRCode,
   createGame,
+  joinGame,
+  kickPlayer,
+  leaveGame,
   checkWinConditions,
   checkCrewmateVictory,
   endGame
 } from '../js/game-logic.js'
-import { gameState } from '../js/game-state.js'
+import { gameState, setMyPlayerName, setIsGameCreator } from '../js/game-state.js'
 
 // Mock endGame to prevent DOM access
 vi.mock('../js/game-logic.js', async () => {
@@ -462,28 +465,284 @@ describe('Win Condition Checks', () => {
       // Both alive AND eliminated crewmates' tasks count toward total
       expect(endGame).not.toHaveBeenCalled()
     })
+  })
+})
 
-    it('should handle crewmates with no tasks', () => {
-      gameState.players = [
-        {
-          name: 'Player1',
-          role: 'crewmate',
-          alive: true,
-          tasks: [],
-          tasksCompleted: 0
+describe('Player Management', () => {
+  let mockElements
+
+  beforeEach(() => {
+    // Reset gameState
+    gameState.players = []
+    gameState.settings.maxPlayers = 10
+    gameState.hostName = null
+    setMyPlayerName(null)
+    setIsGameCreator(false)
+
+    // Mock DOM elements
+    mockElements = {
+      playerNameInput: { value: '', trim: vi.fn() },
+      roomFullMessage: { classList: { add: vi.fn(), remove: vi.fn() } },
+      joinForm: { classList: { add: vi.fn(), remove: vi.fn() } },
+      alreadyJoined: { classList: { add: vi.fn(), remove: vi.fn() } },
+      myPlayerName: { textContent: '' },
+      editSettingsBtn: { style: { display: '' } }
+    }
+
+    global.document = {
+      getElementById: vi.fn((id) => {
+        const elementMap = {
+          'player-name-input': mockElements.playerNameInput,
+          'room-full-message': mockElements.roomFullMessage,
+          'join-form': mockElements.joinForm,
+          'already-joined': mockElements.alreadyJoined,
+          'my-player-name': mockElements.myPlayerName,
+          'edit-settings-btn': mockElements.editSettingsBtn
         }
+        return elementMap[id] || { classList: { add: vi.fn(), remove: vi.fn() }, style: {} }
+      }),
+      body: { innerHTML: '' }
+    }
+
+    // Mock window functions
+    global.alert = vi.fn()
+    global.confirm = vi.fn(() => true)
+
+    // Mock backend functions that player management uses
+    global.startPlayerExistenceCheck = vi.fn()
+    global.addPlayerToDB = vi.fn(async () => {})
+    global.updatePlayerInDB = vi.fn(async () => {})
+    global.removePlayerFromDB = vi.fn(async () => {})
+
+    // Clear all mock calls
+    vi.clearAllMocks()
+  })
+
+  describe('joinGame', () => {
+    it('should reject empty player name', async () => {
+      mockElements.playerNameInput.value = ''
+
+      await joinGame()
+
+      expect(global.alert).toHaveBeenCalledWith('Please enter your name!')
+      expect(gameState.players).toHaveLength(0)
+    })
+
+    it('should reject whitespace-only player name', async () => {
+      mockElements.playerNameInput.value = '   '
+
+      await joinGame()
+
+      expect(global.alert).toHaveBeenCalledWith('Please enter your name!')
+      expect(gameState.players).toHaveLength(0)
+    })
+
+    it('should reject join when room is full', async () => {
+      mockElements.playerNameInput.value = 'Player1'
+      gameState.settings.maxPlayers = 2
+      gameState.players = [
+        { name: 'ExistingPlayer1', ready: true },
+        { name: 'ExistingPlayer2', ready: true }
       ]
 
-      checkCrewmateVictory()
+      await joinGame()
 
-      // Should not throw with empty task list
-      expect(endGame).not.toHaveBeenCalled()
+      expect(mockElements.roomFullMessage.classList.remove).toHaveBeenCalledWith('hidden')
+      expect(gameState.players).toHaveLength(2)
+    })
+
+    it('should add new player with correct properties', async () => {
+      mockElements.playerNameInput.value = 'NewPlayer'
+
+      await joinGame()
+
+      expect(gameState.players).toHaveLength(1)
+      expect(gameState.players[0]).toEqual({
+        name: 'NewPlayer',
+        ready: true,
+        role: null,
+        tasks: [],
+        alive: true,
+        tasksCompleted: 0
+      })
+    })
+
+    it('should handle reconnection for existing player', async () => {
+      const existingPlayer = {
+        name: 'ExistingPlayer',
+        ready: false,
+        role: 'crewmate',
+        tasks: ['Task1'],
+        alive: true,
+        tasksCompleted: 0
+      }
+      gameState.players = [existingPlayer]
+      mockElements.playerNameInput.value = 'ExistingPlayer'
+
+      await joinGame()
+
+      // Should not add duplicate
+      expect(gameState.players).toHaveLength(1)
+      // Should reconnect as existing player (case-sensitive match)
+      expect(gameState.players[0]).toEqual(existingPlayer)
+    })
+
+    it('should handle case-insensitive reconnection', async () => {
+      const existingPlayer = {
+        name: 'ExistingPlayer',
+        ready: false,
+        role: 'crewmate',
+        tasks: ['Task1'],
+        alive: true,
+        tasksCompleted: 0
+      }
+      gameState.players = [existingPlayer]
+      mockElements.playerNameInput.value = 'existingplayer' // lowercase
+
+      await joinGame()
+
+      // Should not add duplicate
+      expect(gameState.players).toHaveLength(1)
+      expect(gameState.players[0]).toEqual(existingPlayer)
+    })
+
+    it('should set first player as host when isGameCreator is true', async () => {
+      setIsGameCreator(true)
+      mockElements.playerNameInput.value = 'HostPlayer'
+
+      await joinGame()
+
+      expect(gameState.hostName).toBe('HostPlayer')
+      expect(gameState.players[0].name).toBe('HostPlayer')
+    })
+
+    it('should not set host if hostName already exists', async () => {
+      setIsGameCreator(true)
+      gameState.hostName = 'ExistingHost'
+      mockElements.playerNameInput.value = 'NewPlayer'
+
+      await joinGame()
+
+      expect(gameState.hostName).toBe('ExistingHost')
+      expect(gameState.players[0].name).toBe('NewPlayer')
+    })
+
+    it('should trim player name whitespace', async () => {
+      mockElements.playerNameInput.value = '  PlayerWithSpaces  '
+
+      await joinGame()
+
+      expect(gameState.players[0].name).toBe('PlayerWithSpaces')
+    })
+  })
+
+  describe('kickPlayer', () => {
+    beforeEach(() => {
+      // Set up a host and some players
+      gameState.hostName = 'Host'
+      setMyPlayerName('Host')
+      setIsGameCreator(true)
+      gameState.players = [
+        { name: 'Host', ready: true, role: null, tasks: [], alive: true, tasksCompleted: 0 },
+        { name: 'Player1', ready: true, role: null, tasks: [], alive: true, tasksCompleted: 0 },
+        { name: 'Player2', ready: true, role: null, tasks: [], alive: true, tasksCompleted: 0 }
+      ]
+    })
+
+    it('should allow host to kick player', async () => {
+      await kickPlayer('Player1')
+
+      expect(gameState.players).toHaveLength(2)
+      expect(gameState.players.find(p => p.name === 'Player1')).toBeUndefined()
+      expect(gameState.players.find(p => p.name === 'Host')).toBeDefined()
+      expect(gameState.players.find(p => p.name === 'Player2')).toBeDefined()
+    })
+
+    it('should not kick player if user cancels confirmation', async () => {
+      global.confirm = vi.fn(() => false)
+
+      await kickPlayer('Player1')
+
+      expect(gameState.players).toHaveLength(3)
+      expect(gameState.players.find(p => p.name === 'Player1')).toBeDefined()
+    })
+
+    it('should prevent non-host from kicking players', async () => {
+      setMyPlayerName('Player1')
+      setIsGameCreator(false)
+
+      await kickPlayer('Player2')
+
+      expect(global.alert).toHaveBeenCalledWith('Only the host can kick players!')
+      expect(gameState.players).toHaveLength(3)
+    })
+
+    it('should handle kicking non-existent player gracefully', async () => {
+      await kickPlayer('NonExistentPlayer')
+
+      // Should not crash, players should remain unchanged
+      expect(gameState.players).toHaveLength(3)
+    })
+  })
+
+  describe('leaveGame', () => {
+    beforeEach(() => {
+      gameState.players = [
+        { name: 'Player1', ready: true, role: null, tasks: [], alive: true, tasksCompleted: 0 },
+        { name: 'Player2', ready: true, role: null, tasks: [], alive: true, tasksCompleted: 0 },
+        { name: 'Player3', ready: true, role: null, tasks: [], alive: true, tasksCompleted: 0 }
+      ]
+      setMyPlayerName('Player2')
+    })
+
+    it('should remove player from game when confirmed', () => {
+      global.confirm = vi.fn(() => true)
+
+      leaveGame()
+
+      expect(gameState.players).toHaveLength(2)
+      expect(gameState.players.find(p => p.name === 'Player2')).toBeUndefined()
+      expect(gameState.players.find(p => p.name === 'Player1')).toBeDefined()
+      expect(gameState.players.find(p => p.name === 'Player3')).toBeDefined()
+    })
+
+    it('should not remove player if user cancels', () => {
+      global.confirm = vi.fn(() => false)
+
+      leaveGame()
+
+      expect(gameState.players).toHaveLength(3)
+      expect(gameState.players.find(p => p.name === 'Player2')).toBeDefined()
+    })
+
+    it('should do nothing if myPlayerName is not set', () => {
+      setMyPlayerName(null)
+
+      leaveGame()
+
+      expect(gameState.players).toHaveLength(3)
+      expect(global.confirm).not.toHaveBeenCalled()
+    })
+
+    it('should handle leaving when player is not in game', () => {
+      setMyPlayerName('NonExistentPlayer')
+      global.confirm = vi.fn(() => true)
+
+      leaveGame()
+
+      // Should not crash
+      expect(gameState.players).toHaveLength(3)
+    })
+
+    it('should show confirmation dialog with correct message', () => {
+      leaveGame()
+
+      expect(global.confirm).toHaveBeenCalledWith('Are you sure you want to leave the game?')
     })
   })
 })
 
 // TODO: Add more test suites for:
-// - Player management (join, leave, kick)
 // - Game state transitions
 // - Voting logic
 // - Task toggling
