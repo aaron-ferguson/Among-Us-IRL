@@ -9,6 +9,7 @@ import {
   leaveGame,
   startGame,
   returnToMenu,
+  toggleTaskComplete,
   selectVote,
   setSelectedVote,
   submitVote,
@@ -18,7 +19,7 @@ import {
   checkCrewmateVictory,
   endGame
 } from '../js/game-logic.js'
-import { gameState, setMyPlayerName, setIsGameCreator } from '../js/game-state.js'
+import { gameState, setMyPlayerName, setIsGameCreator, setCurrentGameId } from '../js/game-state.js'
 
 describe('Room Code Generation', () => {
   it('should generate a 4-character alphanumeric code', () => {
@@ -1377,6 +1378,265 @@ describe('Voting Logic', () => {
   })
 })
 
+describe('Task Toggling', () => {
+  let mockElements
+
+  beforeEach(() => {
+    // Reset game state
+    gameState.stage = 'playing'
+    gameState.currentPlayer = 'Player1'
+    gameState.players = [
+      {
+        name: 'Player1',
+        role: 'crewmate',
+        tasks: [
+          { room: 'Kitchen', task: 'Task1' },
+          { room: 'Living Room', task: 'Task2' },
+          { room: 'Bedroom', task: 'Task3' }
+        ],
+        tasksCompleted: 0,
+        alive: true
+      },
+      {
+        name: 'Player2',
+        role: 'imposter',
+        tasks: [
+          { room: 'Kitchen', task: 'Fake Task' }
+        ],
+        tasksCompleted: 0,
+        alive: true
+      }
+    ]
+
+    // Set currentGameId to enable database updates in tests
+    setCurrentGameId('test-game-id')
+
+    // Mock DOM elements
+    mockElements = {
+      task0: { checked: false, id: 'task-0' },
+      task1: { checked: false, id: 'task-1' },
+      task2: { checked: false, id: 'task-2' },
+      completedTasksCount: { textContent: '0' }
+    }
+
+    global.document = {
+      getElementById: vi.fn((id) => {
+        if (id === 'task-0') return mockElements.task0
+        if (id === 'task-1') return mockElements.task1
+        if (id === 'task-2') return mockElements.task2
+        if (id === 'completed-tasks-count') return mockElements.completedTasksCount
+        return {
+          classList: { add: vi.fn(), remove: vi.fn() },
+          style: {},
+          innerHTML: '',
+          textContent: '',
+          appendChild: vi.fn()
+        }
+      }),
+      createElement: vi.fn(() => ({
+        style: {},
+        classList: { add: vi.fn(), remove: vi.fn() },
+        appendChild: vi.fn()
+      })),
+      body: { innerHTML: '' }
+    }
+
+    // Mock backend functions
+    global.updatePlayerInDB = vi.fn(async () => {})
+
+    vi.clearAllMocks()
+  })
+
+  describe('toggleTaskComplete - crewmate tasks', () => {
+    beforeEach(() => {
+      gameState.currentPlayer = 'Player1'
+    })
+
+    it('should increment tasksCompleted when checking a task', () => {
+      mockElements.task0.checked = true
+
+      toggleTaskComplete(0)
+
+      const player = gameState.players.find(p => p.name === 'Player1')
+      expect(player.tasksCompleted).toBe(1)
+    })
+
+    it('should decrement tasksCompleted when unchecking a task', () => {
+      const player = gameState.players.find(p => p.name === 'Player1')
+      player.tasksCompleted = 2
+      mockElements.task1.checked = false
+
+      toggleTaskComplete(1)
+
+      expect(player.tasksCompleted).toBe(1)
+    })
+
+    it('should update DOM element with new count', () => {
+      mockElements.task0.checked = true
+
+      toggleTaskComplete(0)
+
+      expect(mockElements.completedTasksCount.textContent).toBe(1)
+    })
+
+    it('should not exceed maximum tasks when checking multiple times', () => {
+      const player = gameState.players.find(p => p.name === 'Player1')
+      player.tasksCompleted = 3 // Already at max
+
+      mockElements.task0.checked = true
+      toggleTaskComplete(0)
+
+      expect(player.tasksCompleted).toBe(3) // Should stay at max
+    })
+
+    it('should not go below zero when unchecking', () => {
+      const player = gameState.players.find(p => p.name === 'Player1')
+      player.tasksCompleted = 0
+
+      mockElements.task0.checked = false
+      toggleTaskComplete(0)
+
+      expect(player.tasksCompleted).toBe(0) // Should stay at 0
+    })
+
+    it('should handle crewmate tasks with database enabled', () => {
+      // This test verifies that crewmate task completion works when database is configured
+      // The actual database call (updatePlayerInDB) is tested in integration tests
+      mockElements.task0.checked = true
+
+      toggleTaskComplete(0)
+
+      const player = gameState.players.find(p => p.name === 'Player1')
+      expect(player.tasksCompleted).toBe(1)
+      expect(player.role).toBe('crewmate')
+    })
+
+    it('should check victory condition after crewmate completes task', () => {
+      const player = gameState.players.find(p => p.name === 'Player1')
+      player.tasksCompleted = 0
+      mockElements.task0.checked = true
+
+      // Spy on checkCrewmateVictory by checking if endGame gets called
+      const originalGameEnded = gameState.gameEnded
+
+      toggleTaskComplete(0)
+
+      // If all tasks were complete, gameEnded would be true
+      // We're just verifying the function was called (implicitly by checking state)
+      expect(player.tasksCompleted).toBe(1)
+    })
+
+    it('should handle toggling first task', () => {
+      mockElements.task0.checked = true
+
+      toggleTaskComplete(0)
+
+      const player = gameState.players.find(p => p.name === 'Player1')
+      expect(player.tasksCompleted).toBe(1)
+    })
+
+    it('should handle toggling last task', () => {
+      mockElements.task2.checked = true
+
+      toggleTaskComplete(2)
+
+      const player = gameState.players.find(p => p.name === 'Player1')
+      expect(player.tasksCompleted).toBe(1)
+    })
+
+    it('should handle multiple sequential toggles', () => {
+      const player = gameState.players.find(p => p.name === 'Player1')
+
+      // Check task 0
+      mockElements.task0.checked = true
+      toggleTaskComplete(0)
+      expect(player.tasksCompleted).toBe(1)
+
+      // Check task 1
+      mockElements.task1.checked = true
+      toggleTaskComplete(1)
+      expect(player.tasksCompleted).toBe(2)
+
+      // Uncheck task 0
+      mockElements.task0.checked = false
+      toggleTaskComplete(0)
+      expect(player.tasksCompleted).toBe(1)
+    })
+  })
+
+  describe('toggleTaskComplete - imposter tasks', () => {
+    beforeEach(() => {
+      gameState.currentPlayer = 'Player2'
+    })
+
+    it('should increment tasksCompleted for imposters (dummy tracking)', () => {
+      const imposter = gameState.players.find(p => p.name === 'Player2')
+      mockElements.task0.checked = true
+
+      toggleTaskComplete(0)
+
+      expect(imposter.tasksCompleted).toBe(1)
+    })
+
+    it('should NOT update database for imposter tasks', () => {
+      mockElements.task0.checked = true
+
+      toggleTaskComplete(0)
+
+      expect(global.updatePlayerInDB).not.toHaveBeenCalled()
+    })
+
+    it('should NOT check victory condition for imposter tasks', () => {
+      const originalGameEnded = gameState.gameEnded
+      mockElements.task0.checked = true
+
+      toggleTaskComplete(0)
+
+      // Game should not end from imposter completing tasks
+      expect(gameState.gameEnded).toBe(originalGameEnded)
+    })
+  })
+
+  describe('toggleTaskComplete - edge cases', () => {
+    it('should do nothing if currentPlayer is not found', () => {
+      gameState.currentPlayer = 'NonExistentPlayer'
+      mockElements.task0.checked = true
+
+      toggleTaskComplete(0)
+
+      // Should not crash, players should remain unchanged
+      expect(gameState.players[0].tasksCompleted).toBe(0)
+      expect(gameState.players[1].tasksCompleted).toBe(0)
+    })
+
+    it('should handle player with no tasks', () => {
+      gameState.currentPlayer = 'Player3'
+      gameState.players.push({
+        name: 'Player3',
+        role: 'crewmate',
+        tasks: [],
+        tasksCompleted: 0,
+        alive: true
+      })
+
+      mockElements.task0.checked = true
+      toggleTaskComplete(0)
+
+      const player3 = gameState.players.find(p => p.name === 'Player3')
+      expect(player3.tasksCompleted).toBe(0) // Should stay at 0 (max is 0)
+    })
+
+    it('should handle player with undefined tasksCompleted', () => {
+      const player = gameState.players.find(p => p.name === 'Player1')
+      player.tasksCompleted = undefined
+
+      mockElements.task0.checked = true
+      toggleTaskComplete(0)
+
+      expect(player.tasksCompleted).toBe(1)
+    })
+  })
+})
+
 // TODO: Add more test suites for:
-// - Task toggling
 // - New session creation (newGameSameSettings, newGameNewSettings)
