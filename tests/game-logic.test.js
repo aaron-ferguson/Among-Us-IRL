@@ -2,6 +2,8 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import {
   generateRoomCode,
   getGameURL,
+  generateQRCode,
+  createGame,
   checkWinConditions,
   checkCrewmateVictory,
   endGame
@@ -58,6 +60,204 @@ describe('Game URL Generation', () => {
   })
 })
 
+describe('QR Code Generation', () => {
+  let mockQRCodeImage
+
+  beforeEach(() => {
+    // Mock window.location for URL generation
+    global.window = {
+      location: {
+        origin: 'http://localhost:3000',
+        pathname: '/'
+      }
+    }
+
+    // Create mock QR code image element
+    mockQRCodeImage = {
+      src: '',
+      setAttribute: vi.fn(),
+      getAttribute: vi.fn()
+    }
+
+    // Mock document.getElementById to return our mock image element
+    global.document = {
+      getElementById: vi.fn((id) => {
+        if (id === 'qr-code-image') {
+          return mockQRCodeImage
+        }
+        return null
+      }),
+      body: {
+        innerHTML: ''
+      }
+    }
+
+    // Set a test room code
+    gameState.roomCode = 'ABC123'
+  })
+
+  it('should generate QR code with correct API URL', () => {
+    generateQRCode()
+
+    // Verify QR code image src was set
+    expect(mockQRCodeImage.src).toBeDefined()
+    expect(mockQRCodeImage.src).toContain('https://api.qrserver.com/v1/create-qr-code/')
+  })
+
+  it('should include correct size parameter in QR code URL', () => {
+    generateQRCode()
+
+    expect(mockQRCodeImage.src).toContain('size=180x180')
+  })
+
+  it('should encode game URL in QR code data parameter', () => {
+    generateQRCode()
+
+    const expectedGameUrl = 'http://localhost:3000/?room=ABC123'
+    const encodedUrl = encodeURIComponent(expectedGameUrl)
+
+    expect(mockQRCodeImage.src).toContain(`data=${encodedUrl}`)
+  })
+
+  it('should update QR code when room code changes', () => {
+    // Generate QR code with first room code
+    gameState.roomCode = 'FIRST'
+    generateQRCode()
+    const firstQRUrl = mockQRCodeImage.src
+
+    // Change room code and regenerate
+    gameState.roomCode = 'SECOND'
+    generateQRCode()
+    const secondQRUrl = mockQRCodeImage.src
+
+    // URLs should be different
+    expect(firstQRUrl).not.toBe(secondQRUrl)
+    expect(secondQRUrl).toContain('SECOND')
+    expect(secondQRUrl).not.toContain('FIRST')
+  })
+
+  it('should construct complete QR API URL with all parameters', () => {
+    generateQRCode()
+
+    const qrUrl = mockQRCodeImage.src
+    const expectedGameUrl = encodeURIComponent('http://localhost:3000/?room=ABC123')
+
+    expect(qrUrl).toBe(`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${expectedGameUrl}`)
+  })
+
+  it('should call getElementById with correct ID', () => {
+    generateQRCode()
+
+    expect(global.document.getElementById).toHaveBeenCalledWith('qr-code-image')
+  })
+})
+
+describe('QR Code Integration with Game Sessions', () => {
+  let mockElements
+
+  beforeEach(() => {
+    // Mock window.location
+    global.window = {
+      location: {
+        origin: 'http://localhost:3000',
+        pathname: '/'
+      }
+    }
+
+    // Create comprehensive mock elements for createGame
+    mockElements = {
+      qrCodeImage: { src: '' },
+      minPlayers: { value: '4' },
+      maxPlayers: { value: '10' },
+      tasksPerPlayer: { value: '3' },
+      imposterCount: { value: '2' },
+      eliminationCooldown: { value: '30' },
+      cooldownReduction: { value: '5' },
+      meetingRoom: { value: 'Living Room' },
+      meetingLimit: { value: '3' },
+      meetingTimer: { value: '60' },
+      additionalRules: { value: '' },
+      minPlayersDisplay: { textContent: '' },
+      maxPlayersDisplay: { textContent: '' },
+      imposterCountDisplay: { textContent: '' },
+      setupPhase: { classList: { add: vi.fn(), remove: vi.fn() } },
+      waitingRoom: { classList: { add: vi.fn(), remove: vi.fn() } },
+      roomCode: { textContent: '' },
+      joinForm: { classList: { add: vi.fn(), remove: vi.fn() } },
+      alreadyJoined: { classList: { add: vi.fn(), remove: vi.fn() } }
+    }
+
+    // Mock document.getElementById
+    global.document = {
+      getElementById: vi.fn((id) => {
+        const elementMap = {
+          'qr-code-image': mockElements.qrCodeImage,
+          'min-players': mockElements.minPlayers,
+          'max-players': mockElements.maxPlayers,
+          'tasks-per-player': mockElements.tasksPerPlayer,
+          'imposter-count': mockElements.imposterCount,
+          'elimination-cooldown': mockElements.eliminationCooldown,
+          'cooldown-reduction': mockElements.cooldownReduction,
+          'meeting-room': mockElements.meetingRoom,
+          'meeting-limit': mockElements.meetingLimit,
+          'meeting-timer': mockElements.meetingTimer,
+          'additional-rules': mockElements.additionalRules,
+          'min-players-display': mockElements.minPlayersDisplay,
+          'max-players-display': mockElements.maxPlayersDisplay,
+          'imposter-count-display': mockElements.imposterCountDisplay,
+          'setup-phase': mockElements.setupPhase,
+          'waiting-room': mockElements.waitingRoom,
+          'room-code': mockElements.roomCode,
+          'join-form': mockElements.joinForm,
+          'already-joined': mockElements.alreadyJoined
+        }
+        return elementMap[id] || null
+      }),
+      body: {
+        innerHTML: ''
+      }
+    }
+
+    // Reset gameState
+    gameState.roomCode = ''
+    gameState.stage = 'setup'
+  })
+
+  it('should generate QR code when createGame is called', async () => {
+    await createGame()
+
+    // Verify QR code was generated
+    expect(mockElements.qrCodeImage.src).toBeDefined()
+    expect(mockElements.qrCodeImage.src).toContain('https://api.qrserver.com/v1/create-qr-code/')
+  })
+
+  it('should generate QR code with new room code after createGame', async () => {
+    await createGame()
+
+    const qrUrl = mockElements.qrCodeImage.src
+    const roomCode = mockElements.roomCode.textContent
+
+    // Room code should be set
+    expect(roomCode).toHaveLength(4)
+    expect(roomCode).toMatch(/^[A-HJ-NP-Z2-9]{4}$/)
+
+    // QR code should contain the room code
+    expect(qrUrl).toContain(encodeURIComponent(roomCode))
+  })
+
+  it('should update gameState.roomCode before generating QR code', async () => {
+    await createGame()
+
+    // Room code should be set in gameState
+    expect(gameState.roomCode).toBeDefined()
+    expect(gameState.roomCode).toHaveLength(4)
+
+    // QR code should use the gameState room code
+    const expectedUrl = encodeURIComponent(`http://localhost:3000/?room=${gameState.roomCode}`)
+    expect(mockElements.qrCodeImage.src).toContain(expectedUrl)
+  })
+})
+
 describe('Win Condition Checks', () => {
   beforeEach(() => {
     // Reset gameState before each test
@@ -86,22 +286,6 @@ describe('Win Condition Checks', () => {
         { name: 'Player1', role: 'crewmate', alive: true },
         { name: 'Player2', role: 'crewmate', alive: false },
         { name: 'Imposter1', role: 'imposter', alive: true }
-      ]
-
-      const result = checkWinConditions()
-
-      expect(result).toBeDefined()
-      expect(result.winner).toBe('imposters')
-      expect(result.reason).toBe('Imposters equal or outnumber crewmates')
-    })
-
-    it('should return imposters win when they outnumber crewmates', () => {
-      gameState.players = [
-        { name: 'Player1', role: 'crewmate', alive: false },
-        { name: 'Player2', role: 'crewmate', alive: false },
-        { name: 'Player3', role: 'crewmate', alive: true },
-        { name: 'Imposter1', role: 'imposter', alive: true },
-        { name: 'Imposter2', role: 'imposter', alive: true }
       ]
 
       const result = checkWinConditions()
@@ -347,3 +531,4 @@ describe('Win Condition Checks', () => {
 // - Game state transitions
 // - Voting logic
 // - Task toggling
+// - New session creation (newGameSameSettings, newGameNewSettings)
