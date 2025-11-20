@@ -127,6 +127,8 @@ winner: null
 document.getElementById('setup-phase').classList.add('hidden');
 document.getElementById('waiting-room').classList.add('hidden');
 document.getElementById('game-phase').classList.add('hidden');
+document.getElementById('meeting-phase').classList.add('hidden');
+document.getElementById('game-end').classList.add('hidden');
 document.getElementById('main-menu').classList.remove('hidden');
 
 // Hide join section

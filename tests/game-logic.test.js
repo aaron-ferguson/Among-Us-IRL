@@ -23,7 +23,7 @@ import {
   acknowledgeMeeting,
   resumeGame
 } from '../js/game-logic.js'
-import { gameState, setMyPlayerName, setIsGameCreator, setCurrentGameId } from '../js/game-state.js'
+import { gameState, myPlayerName, isGameCreator, setMyPlayerName, setIsGameCreator, setCurrentGameId } from '../js/game-state.js'
 
 describe('Room Code Generation', () => {
   it('should generate a 4-character alphanumeric code', () => {
@@ -2482,6 +2482,94 @@ describe('Meeting Flow', () => {
       expect(global.alert).not.toHaveBeenCalled()
       expect(gameState.meetingCaller).toBe('Player1')
     })
+  })
+})
+
+describe('Return to Menu', () => {
+  let mockElements
+
+  beforeEach(() => {
+    // Set up game state as if game has ended
+    gameState.stage = 'ended'
+    gameState.roomCode = 'ABC123'
+    gameState.hostName = 'Host'
+    gameState.players = [
+      { name: 'Player1', role: 'ally' },
+      { name: 'Player2', role: 'traitor' }
+    ]
+    gameState.gameEnded = true
+    gameState.winner = 'allies'
+
+    setMyPlayerName('Player1')
+    setIsGameCreator(false)
+
+    // Mock DOM elements
+    mockElements = {
+      setupPhase: { classList: { add: vi.fn(), remove: vi.fn() } },
+      waitingRoom: { classList: { add: vi.fn(), remove: vi.fn() } },
+      gamePhase: { classList: { add: vi.fn(), remove: vi.fn() } },
+      meetingPhase: { classList: { add: vi.fn(), remove: vi.fn() } },
+      gameEnd: { classList: { add: vi.fn(), remove: vi.fn() } },
+      mainMenu: { classList: { add: vi.fn(), remove: vi.fn() } },
+      joinGameSection: { classList: { add: vi.fn(), remove: vi.fn() } }
+    }
+
+    global.document = {
+      getElementById: vi.fn((id) => {
+        const elementMap = {
+          'setup-phase': mockElements.setupPhase,
+          'waiting-room': mockElements.waitingRoom,
+          'game-phase': mockElements.gamePhase,
+          'meeting-phase': mockElements.meetingPhase,
+          'game-end': mockElements.gameEnd,
+          'main-menu': mockElements.mainMenu,
+          'join-game-section': mockElements.joinGameSection
+        }
+        return elementMap[id] || {
+          classList: { add: vi.fn(), remove: vi.fn() },
+          style: {},
+          innerHTML: '',
+          textContent: ''
+        }
+      }),
+      body: { innerHTML: '' }
+    }
+
+    vi.clearAllMocks()
+  })
+
+  it('should hide all game phases including game-end', () => {
+    returnToMenu()
+
+    expect(mockElements.setupPhase.classList.add).toHaveBeenCalledWith('hidden')
+    expect(mockElements.waitingRoom.classList.add).toHaveBeenCalledWith('hidden')
+    expect(mockElements.gamePhase.classList.add).toHaveBeenCalledWith('hidden')
+    expect(mockElements.meetingPhase.classList.add).toHaveBeenCalledWith('hidden')
+    expect(mockElements.gameEnd.classList.add).toHaveBeenCalledWith('hidden')
+  })
+
+  it('should show only main menu', () => {
+    returnToMenu()
+
+    expect(mockElements.mainMenu.classList.remove).toHaveBeenCalledWith('hidden')
+  })
+
+  it('should clear player state', () => {
+    returnToMenu()
+
+    expect(myPlayerName).toBeNull()
+    expect(isGameCreator).toBe(false)
+  })
+
+  it('should reset game state to defaults', () => {
+    returnToMenu()
+
+    expect(gameState.stage).toBe('setup')
+    expect(gameState.roomCode).toBe('')
+    expect(gameState.hostName).toBeNull()
+    expect(gameState.players).toEqual([])
+    expect(gameState.gameEnded).toBe(false)
+    expect(gameState.winner).toBeNull()
   })
 })
 
