@@ -481,10 +481,21 @@ ready: newData.ready,
 tasks: newData.tasks || [],
 alive: newData.alive,
 tasksCompleted: newData.tasks_completed || 0,
-votedFor: newData.voted_for
+votedFor: newData.voted_for,
+emergencyMeetingsUsed: newData.emergency_meetings_used || 0
 };
-console.log('Player updated! Calling updateLobby()...');
+console.log('Player updated! Updating UI...');
+// Call appropriate UI update based on current stage
+if (gameState.stage === 'playing') {
+// If we're in the game, update the gameplay display
+// Import displayGameplay from game-logic if needed
+if (typeof window.displayGameplay === 'function') {
+window.displayGameplay();
+}
+} else {
+// If we're in waiting room, update lobby
 updateLobby();
+}
 } else {
 console.log('Player not found in local array, cannot update');
 }
