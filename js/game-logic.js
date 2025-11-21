@@ -324,7 +324,7 @@ return;
 
 gameState.players.push({
 name: name,
-ready: false, // Changed: Player not ready until they confirm their name
+ready: true, // Player is ready when they type their name and click "Join Game"
 role: null,
 tasks: [],
 alive: true,
@@ -365,8 +365,8 @@ nameInput.value = '';
 updateJoinSection();
 updateLobby();
 
-// Add player to database with ready=false (not ready until name confirmed)
-await addPlayerToDB(name, false);
+// Add player to database with ready=true (they confirmed by typing name and joining)
+await addPlayerToDB(name, true);
 
 // Start polling to detect if we get kicked
 startPlayerExistenceCheck();
