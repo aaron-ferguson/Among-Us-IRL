@@ -1546,6 +1546,16 @@ async function tallyVotes() {
 if (gameState.votesTallied) {
 return;
 }
+
+// Check if all alive players have voted
+const alivePlayers = gameState.players.filter(p => p.alive === true);
+const votesSubmitted = Object.keys(gameState.votes).length;
+
+if (votesSubmitted < alivePlayers.length) {
+console.warn(`Cannot tally: Only ${votesSubmitted} of ${alivePlayers.length} alive players have voted`);
+return; // Don't tally until all alive players have voted
+}
+
 gameState.votesTallied = true;
 
 const voteCounts = {};

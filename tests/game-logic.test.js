@@ -1319,6 +1319,62 @@ describe('Voting Logic', () => {
         expect(player.alive).toBe(true)
       })
     })
+
+    it('should NOT tally votes when not all alive players have voted', async () => {
+      // Setup: 4 players, 3 alive, but only 2 have voted
+      gameState.players = [
+        { name: 'Player1', role: 'ally', alive: true },
+        { name: 'Player2', role: 'ally', alive: true },
+        { name: 'Player3', role: 'traitor', alive: true },
+        { name: 'Player4', role: 'ally', alive: false } // Dead player
+      ]
+
+      // Only 2 of 3 alive players have voted
+      gameState.votes = {
+        'Player1': 'Player3',
+        'Player2': 'skip'
+        // Player3 (alive) hasn't voted yet!
+      }
+      gameState.votesTallied = false
+
+      await tallyVotes()
+
+      // Should NOT tally - votesTallied should remain false
+      expect(gameState.votesTallied).toBe(false)
+      // Vote results should not be set (could be null or undefined)
+      expect(gameState.settings.voteResults).toBeFalsy()
+      // All players should still be alive
+      gameState.players.forEach(player => {
+        if (player.name !== 'Player4') { // Player4 was already dead
+          expect(player.alive).toBe(true)
+        }
+      })
+    })
+
+    it('should tally votes when all alive players have voted', async () => {
+      // Setup: 4 players, 3 alive, all 3 have voted
+      gameState.players = [
+        { name: 'Player1', role: 'ally', alive: true },
+        { name: 'Player2', role: 'ally', alive: true },
+        { name: 'Player3', role: 'traitor', alive: true },
+        { name: 'Player4', role: 'ally', alive: false } // Dead player
+      ]
+
+      // All 3 alive players have voted (dead player doesn't need to vote)
+      gameState.votes = {
+        'Player1': 'Player3',
+        'Player2': 'Player3',
+        'Player3': 'Player1'
+      }
+      gameState.votesTallied = false
+
+      await tallyVotes()
+
+      // Should tally successfully
+      expect(gameState.votesTallied).toBe(true)
+      expect(gameState.settings.voteResults).toBeDefined()
+      expect(gameState.settings.voteResults.eliminatedPlayer).toBe('Player3')
+    })
   })
 
   describe('selectVote', () => {
