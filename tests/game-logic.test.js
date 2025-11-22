@@ -2264,7 +2264,11 @@ describe('Meeting Flow', () => {
       votingPhase: { classList: { add: vi.fn(), remove: vi.fn() } },
       discussionPhase: { classList: { add: vi.fn(), remove: vi.fn() } },
       meetingTypeSelection: { classList: { add: vi.fn(), remove: vi.fn() } },
-      callMeetingBtn: { parentElement: { classList: { add: vi.fn(), remove: vi.fn() } } }
+      callMeetingBtn: {
+        parentElement: { classList: { add: vi.fn(), remove: vi.fn() } },
+        disabled: false,
+        style: { opacity: '1', cursor: 'pointer' }
+      }
     }
 
     global.document = {
@@ -2283,7 +2287,7 @@ describe('Meeting Flow', () => {
         }
         return elementMap[id] || {
           classList: { add: vi.fn(), remove: vi.fn() },
-          style: {},
+          style: { opacity: '1', cursor: 'pointer' },
           innerHTML: '',
           textContent: '',
           appendChild: vi.fn(),
@@ -2487,7 +2491,7 @@ describe('Meeting Flow', () => {
         }
         return elementMap[id] || {
           classList: { add: vi.fn(), remove: vi.fn() },
-          style: {},
+          style: { opacity: '1', cursor: 'pointer' },
           innerHTML: '',
           textContent: '',
           appendChild: vi.fn(),
