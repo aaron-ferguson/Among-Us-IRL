@@ -323,11 +323,20 @@ displayVoteResults(voteCounts, eliminatedPlayer, isTie);
 // Update vote count display for players on results screen (if applicable)
 if (voteResultsVisible) {
 const resultsDisplay = document.getElementById('results-display');
-if (resultsDisplay && votesSubmitted < totalAlivePlayers && !gameState.votesTallied) {
+if (resultsDisplay) {
+if (votesSubmitted < totalAlivePlayers && !gameState.votesTallied) {
+// Still waiting for all votes to come in
 resultsDisplay.innerHTML = `
 <p style="color: #a0a0a0;">Votes submitted: ${votesSubmitted}/${totalAlivePlayers}</p>
 <p style="color: #5eb3f6;">Waiting for all players to vote...</p>
 `;
+} else if (gameState.votesTallied && !newData.settings?.voteResults) {
+// Votes have been tallied locally, waiting for database sync
+resultsDisplay.innerHTML = `
+<p style="color: #5eb3f6;">Tallying votes...</p>
+<p style="color: #a0a0a0;">Syncing results...</p>
+`;
+}
 }
 }
 
