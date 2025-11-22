@@ -154,10 +154,46 @@ return `${baseUrl}?room=${gameState.roomCode}`;
 
 function copyGameURL() {
 const url = getGameURL();
-navigator.clipboard.writeText(url).then(() => {
 const feedback = document.getElementById('copy-feedback');
+
+// Try modern clipboard API first
+navigator.clipboard.writeText(url)
+.then(() => {
+feedback.textContent = 'Link copied!';
 feedback.style.opacity = '1';
 setTimeout(() => feedback.style.opacity = '0', 2000);
+})
+.catch((err) => {
+// Fallback for when document is not focused or clipboard API fails
+console.warn('Clipboard API failed, using fallback method:', err);
+try {
+// Create a temporary textarea
+const textarea = document.createElement('textarea');
+textarea.value = url;
+textarea.style.position = 'fixed';
+textarea.style.opacity = '0';
+document.body.appendChild(textarea);
+textarea.select();
+const success = document.execCommand('copy');
+document.body.removeChild(textarea);
+
+if (success) {
+feedback.textContent = 'Link copied!';
+feedback.style.opacity = '1';
+setTimeout(() => feedback.style.opacity = '0', 2000);
+} else {
+throw new Error('execCommand failed');
+}
+} catch (fallbackErr) {
+console.error('All copy methods failed:', fallbackErr);
+feedback.textContent = 'Copy failed - please copy manually';
+feedback.style.opacity = '1';
+feedback.style.color = '#ff6b6b';
+setTimeout(() => {
+feedback.style.opacity = '0';
+feedback.style.color = '#4CAF50';
+}, 3000);
+}
 });
 }
 
