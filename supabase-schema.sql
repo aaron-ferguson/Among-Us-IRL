@@ -14,6 +14,8 @@ CREATE TABLE games (
     meetings_used INTEGER DEFAULT 0,
     game_ended BOOLEAN DEFAULT false,
     winner TEXT,
+    meeting_type TEXT,
+    meeting_caller TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     expires_at TIMESTAMP WITH TIME ZONE DEFAULT (NOW() + INTERVAL '4 hours')
@@ -30,6 +32,7 @@ CREATE TABLE players (
     tasks JSONB DEFAULT '[]'::jsonb,
     tasks_completed INTEGER DEFAULT 0,
     voted_for TEXT,
+    emergency_meetings_used INTEGER DEFAULT 0,
     last_seen TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     UNIQUE(game_id, name)

@@ -973,6 +973,13 @@ if (type === 'emergency') {
 const currentPlayer = gameState.players.find(p => p.name === myPlayerName);
 if (currentPlayer) {
 currentPlayer.emergencyMeetingsUsed = (currentPlayer.emergencyMeetingsUsed || 0) + 1;
+
+// Sync to database
+if (supabaseClient && currentGameId) {
+await updatePlayerInDB(myPlayerName, {
+emergency_meetings_used: currentPlayer.emergencyMeetingsUsed
+});
+}
 }
 }
 
