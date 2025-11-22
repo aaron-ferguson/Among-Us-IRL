@@ -2316,12 +2316,6 @@ document.getElementById('join-next-game-section').classList.remove('hidden');
 // If response is 'no', just stay in the current screen
 }
 
-function endSession() {
-if (confirm('Are you sure you want to end this session?')) {
-location.reload();
-}
-}
-
 // Export for testing and module usage
 export {
   showCreateGame,
