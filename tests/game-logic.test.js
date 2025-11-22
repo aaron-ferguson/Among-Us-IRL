@@ -2631,6 +2631,67 @@ describe('Meeting Flow', () => {
       expect(mockElements.votingPhase.classList.add).toHaveBeenCalledWith('hidden')
       expect(mockElements.discussionPhase.classList.add).toHaveBeenCalledWith('hidden')
     })
+
+    it('should NOT allow resume when voting is incomplete (not all alive players voted)', () => {
+      // Setup: 3 alive players, but only 2 have voted
+      gameState.players = [
+        { name: 'Player1', role: 'ally', alive: true, tasks: [], emergencyMeetingsUsed: 0 },
+        { name: 'Player2', role: 'ally', alive: true, tasks: [], emergencyMeetingsUsed: 0 },
+        { name: 'Player3', role: 'traitor', alive: true, tasks: [], emergencyMeetingsUsed: 0 },
+        { name: 'Player4', role: 'ally', alive: false, tasks: [], emergencyMeetingsUsed: 0 }
+      ]
+
+      // Only 2 of 3 alive players have voted
+      gameState.votes = {
+        'Player1': 'Player3',
+        'Player2': 'skip'
+        // Player3 hasn't voted yet!
+      }
+      gameState.votingStarted = true
+      gameState.votesTallied = false  // Votes NOT tallied yet
+
+      setIsGameCreator(true)
+      setMyPlayerName('Player1')
+      gameState.hostName = 'Player1'
+
+      // Attempt to resume as host
+      resumeGame()
+
+      // Should NOT resume - stage should still be 'meeting'
+      expect(gameState.stage).toBe('meeting')
+
+      // Meeting phase should NOT be hidden
+      expect(mockElements.meetingPhase.classList.add).not.toHaveBeenCalledWith('hidden')
+    })
+
+    it('should allow resume when all alive players have voted and votes are tallied', () => {
+      // Setup: 3 alive players, all have voted
+      gameState.players = [
+        { name: 'Player1', role: 'ally', alive: true, tasks: [], emergencyMeetingsUsed: 0 },
+        { name: 'Player2', role: 'ally', alive: true, tasks: [], emergencyMeetingsUsed: 0 },
+        { name: 'Player3', role: 'traitor', alive: true, tasks: [], emergencyMeetingsUsed: 0 },
+        { name: 'Player4', role: 'ally', alive: false, tasks: [], emergencyMeetingsUsed: 0 }
+      ]
+
+      // All 3 alive players have voted
+      gameState.votes = {
+        'Player1': 'Player3',
+        'Player2': 'skip',
+        'Player3': 'Player1'
+      }
+      gameState.votingStarted = true
+      gameState.votesTallied = true  // Votes ARE tallied
+
+      setIsGameCreator(true)
+      setMyPlayerName('Player1')
+      gameState.hostName = 'Player1'
+
+      // Attempt to resume as host
+      resumeGame()
+
+      // SHOULD resume - stage should be 'playing'
+      expect(gameState.stage).toBe('playing')
+    })
   })
 
   describe('Meeting limit enforcement', () => {

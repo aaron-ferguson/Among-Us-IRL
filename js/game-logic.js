@@ -1711,6 +1711,11 @@ if (!isHost()) {
 return;
 }
 
+// Don't allow resume if voting hasn't been completed
+if (gameState.votingStarted && !gameState.votesTallied) {
+return;
+}
+
 // Hide meeting and voting screens
 document.getElementById('meeting-phase').classList.add('hidden');
 document.getElementById('vote-results').classList.add('hidden');
