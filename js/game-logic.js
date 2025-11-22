@@ -1542,8 +1542,13 @@ document.getElementById('results-display').innerHTML = `
 }
 
 async function tallyVotes() {
+console.log('=== tallyVotes() CALLED ===');
+console.log('Current votes:', gameState.votes);
+console.log('votesTallied flag:', gameState.votesTallied);
+
 // Prevent double tallying
 if (gameState.votesTallied) {
+console.log('❌ Already tallied, returning early');
 return;
 }
 
@@ -1551,11 +1556,19 @@ return;
 const alivePlayers = gameState.players.filter(p => p.alive === true);
 const votesSubmitted = Object.keys(gameState.votes).length;
 
+console.log('Alive players:', alivePlayers.map(p => p.name));
+console.log('Alive player count:', alivePlayers.length);
+console.log('Votes submitted count:', votesSubmitted);
+console.log('Players who voted:', Object.keys(gameState.votes));
+
 if (votesSubmitted < alivePlayers.length) {
-console.warn(`Cannot tally: Only ${votesSubmitted} of ${alivePlayers.length} alive players have voted`);
+console.warn(`❌ Cannot tally: Only ${votesSubmitted} of ${alivePlayers.length} alive players have voted`);
+const missingVoters = alivePlayers.filter(p => !gameState.votes[p.name]);
+console.warn('Missing votes from:', missingVoters.map(p => p.name));
 return; // Don't tally until all alive players have voted
 }
 
+console.log('✅ All alive players have voted, proceeding with tally...');
 gameState.votesTallied = true;
 
 const voteCounts = {};
@@ -1644,6 +1657,14 @@ console.log('Host: Resume button shown immediately after tallying');
 }
 
 function displayVoteResults(voteCounts, eliminatedPlayer, isTie) {
+console.log('=== displayVoteResults() CALLED ===');
+console.log('Vote counts:', voteCounts);
+console.log('Eliminated player:', eliminatedPlayer);
+console.log('Is tie:', isTie);
+console.log('votesTallied flag:', gameState.votesTallied);
+console.log('Current gameState.votes:', gameState.votes);
+console.log('Alive players:', gameState.players.filter(p => p.alive).map(p => p.name));
+
 document.getElementById('voting-phase').classList.add('hidden');
 document.getElementById('vote-results').classList.remove('hidden');
 
