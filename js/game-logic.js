@@ -788,12 +788,20 @@ document.getElementById('role-hidden').classList.remove('hidden');
 document.getElementById('role-revealed').classList.add('hidden');
 document.getElementById('toggle-role-btn').textContent = 'Reveal Role';
 
+// Display per-player emergency meetings remaining
+const currentPlayer = gameState.players.find(p => p.name === myPlayerName);
+const playerEmergencyMeetingsUsed = currentPlayer?.emergencyMeetingsUsed || 0;
 document.getElementById('meetings-remaining').textContent =
-gameState.settings.meetingLimit - gameState.meetingsUsed;
+gameState.settings.meetingLimit - playerEmergencyMeetingsUsed;
+
+// Ensure call meeting button and meeting type selection are properly shown/hidden
+const callMeetingBtn = document.getElementById('call-meeting-btn');
+if (callMeetingBtn && callMeetingBtn.parentElement) {
+// Show the call meeting button (hide meeting type selection)
+callMeetingBtn.parentElement.classList.remove('hidden');
+document.getElementById('meeting-type-selection').classList.add('hidden');
 
 // Disable call meeting button for eliminated players
-const callMeetingBtn = document.getElementById('call-meeting-btn');
-if (callMeetingBtn) {
 if (!player.alive) {
 callMeetingBtn.disabled = true;
 callMeetingBtn.style.opacity = '0.5';
@@ -945,15 +953,17 @@ const emergencyBtn = document.getElementById('emergency-meeting-btn');
 const emergencyText = document.getElementById('emergency-meetings-text');
 emergencyText.textContent = `${meetingsRemaining} emergency meeting${meetingsRemaining !== 1 ? 's' : ''} remaining`;
 
-// Disable emergency meeting button if player has no meetings left
+// Enable/disable emergency meeting button based on meetings remaining
 if (meetingsRemaining <= 0) {
 emergencyBtn.disabled = true;
 emergencyBtn.style.opacity = '0.5';
 emergencyBtn.style.cursor = 'not-allowed';
 } else {
+// Ensure button is fully enabled and styled correctly
 emergencyBtn.disabled = false;
-emergencyBtn.style.opacity = '1';
-emergencyBtn.style.cursor = 'pointer';
+emergencyBtn.style.opacity = '';  // Remove inline opacity to use CSS defaults
+emergencyBtn.style.cursor = '';   // Remove inline cursor to use CSS defaults
+emergencyBtn.style.background = ''; // Remove any lingering background override
 }
 }
 
