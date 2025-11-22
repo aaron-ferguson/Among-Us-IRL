@@ -2378,7 +2378,6 @@ export {
   declineJoinGame,
   acceptNewGameInvitation,
   declineNewGameInvitation,
-  newGameNewSettings,
-  endSession
+  newGameNewSettings
 };
 
