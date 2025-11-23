@@ -428,21 +428,23 @@ if (error || !data) {
 console.log('Player existence check: Player not found in DB - we were kicked!');
 clearInterval(playerExistenceInterval);
 setPlayerExistenceInterval(null);
-// Don't show "kicked" message if this is the host (they're likely starting a new game)
+// Don't kick host back to menu - they may be editing settings or creating new game
+// Only kick non-hosts who were actually removed by the host
 if (!isHost()) {
 alert('You have been removed from the game by the host.');
-}
 returnToMenu();
+}
 }
 } catch (err) {
 console.log('Player existence check error (likely kicked):', err);
 clearInterval(playerExistenceInterval);
 setPlayerExistenceInterval(null);
-// Don't show "kicked" message if this is the host (they're likely starting a new game)
+// Don't kick host back to menu - they may be editing settings or creating new game
+// Only kick non-hosts who were actually removed by the host
 if (!isHost()) {
 alert('You have been removed from the game by the host.');
-}
 returnToMenu();
+}
 }
 }, 2000));
 }, 3000);
@@ -672,8 +674,14 @@ document.getElementById('meeting-location-defeat').textContent = gameState.setti
 populateGameSummary();
 
 // Show host controls if this player is the host
+// Host meta-game controls are always available regardless of alive/eliminated status
 if (isHost()) {
 document.getElementById('host-game-controls').classList.remove('hidden');
+document.getElementById('non-host-game-controls').classList.add('hidden');
+} else {
+// Show non-host controls (Back to Menu button)
+document.getElementById('host-game-controls').classList.add('hidden');
+document.getElementById('non-host-game-controls').classList.remove('hidden');
 }
 }
 }

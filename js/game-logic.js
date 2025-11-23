@@ -25,6 +25,9 @@ import {
   unsubscribeFromChannels
 } from './supabase-backend.js';
 
+// Track voting timer to allow cleanup when votes are tallied early
+let votingTimerInterval = null;
+
 // ==================== MENU NAVIGATION ====================
 
 function showCreateGame() {
@@ -319,10 +322,67 @@ alert('Only the host can edit settings!');
 return;
 }
 
-if (confirm('Are you sure you want to edit settings? This will return you to the setup screen.')) {
-document.getElementById('waiting-room').classList.add('hidden');
-document.getElementById('setup-phase').classList.remove('hidden');
+// Show settings as modal overlay instead of switching screens
+const backdrop = document.getElementById('settings-modal-backdrop');
+const setupPhase = document.getElementById('setup-phase');
+const cancelBtn = document.getElementById('cancel-settings-btn');
+const createGameBtn = document.getElementById('create-game-btn');
+const saveSettingsBtn = document.getElementById('save-settings-btn');
+
+// Show backdrop and modal
+backdrop.classList.remove('hidden');
+setupPhase.classList.add('modal-mode');
+setupPhase.classList.remove('hidden');
+
+// Show close button and save button, hide create button
+cancelBtn.classList.remove('hidden');
+createGameBtn.classList.add('hidden');
+saveSettingsBtn.classList.remove('hidden');
 }
+
+function cancelSettingsEdit() {
+// Hide modal and backdrop
+const backdrop = document.getElementById('settings-modal-backdrop');
+const setupPhase = document.getElementById('setup-phase');
+const cancelBtn = document.getElementById('cancel-settings-btn');
+const createGameBtn = document.getElementById('create-game-btn');
+const saveSettingsBtn = document.getElementById('save-settings-btn');
+
+backdrop.classList.add('hidden');
+setupPhase.classList.remove('modal-mode');
+setupPhase.classList.add('hidden');
+
+// Restore button visibility
+cancelBtn.classList.add('hidden');
+createGameBtn.classList.remove('hidden');
+saveSettingsBtn.classList.add('hidden');
+}
+
+async function saveSettings() {
+// Read settings from form
+gameState.settings.minPlayers = parseInt(document.getElementById('min-players').value);
+gameState.settings.maxPlayers = parseInt(document.getElementById('max-players').value);
+gameState.settings.tasksPerPlayer = parseInt(document.getElementById('tasks-per-player').value);
+gameState.settings.traitorCount = parseInt(document.getElementById('traitor-count').value);
+gameState.settings.eliminationCooldown = parseInt(document.getElementById('elimination-cooldown').value);
+gameState.settings.cooldownReduction = parseInt(document.getElementById('cooldown-reduction').value);
+gameState.settings.meetingRoom = document.getElementById('meeting-room').value;
+gameState.settings.meetingLimit = parseInt(document.getElementById('meeting-limit').value);
+gameState.settings.meetingTimer = parseInt(document.getElementById('meeting-timer').value);
+gameState.settings.additionalRules = document.getElementById('additional-rules').value;
+
+// Update database if using Supabase
+if (supabaseClient && currentGameId) {
+await updateGameInDB();
+}
+
+// Close modal
+cancelSettingsEdit();
+
+// Update display values in waiting room
+updateWaitingRoomDisplays();
+
+alert('Settings updated successfully!');
 }
 
 async function joinGame() {
@@ -896,7 +956,7 @@ tasksContainer.appendChild(taskItem);
 }
 
 function toggleTaskComplete(taskIndex) {
-const player = gameState.players.find(p => p.name === gameState.currentPlayer);
+const player = gameState.players.find(p => p.name === myPlayerName);
 if (!player) return;
 
 const checkbox = document.getElementById(`task-${taskIndex}`);
@@ -1287,21 +1347,6 @@ updateGameInDB();
 startVoting();
 }
 
-function startDiscussionTimer() {
-let timeLeft = gameState.settings.meetingTimer;
-document.getElementById('discussion-timer').textContent = timeLeft;
-
-const interval = setInterval(() => {
-timeLeft--;
-document.getElementById('discussion-timer').textContent = timeLeft;
-
-if (timeLeft <= 0) {
-clearInterval(interval);
-startVoting();
-}
-}, 1000);
-}
-
 function startVoting() {
 // Disable host elimination controls once voting starts
 const toggleBtn = document.getElementById('toggle-elimination-controls-btn');
@@ -1390,12 +1435,13 @@ if (!isEliminated) {
 let timeLeft = gameState.settings.meetingTimer;
 document.getElementById('vote-timer').textContent = timeLeft;
 
-const interval = setInterval(() => {
+votingTimerInterval = setInterval(() => {
 timeLeft--;
 document.getElementById('vote-timer').textContent = timeLeft;
 
 if (timeLeft <= 0) {
-clearInterval(interval);
+clearInterval(votingTimerInterval);
+votingTimerInterval = null;
 console.log('=== VOTING TIMER EXPIRED ===');
 console.log('Current selectedVote:', selectedVote);
 console.log('myPlayerName:', myPlayerName);
@@ -1426,6 +1472,11 @@ let selectedVote = null;
 // Setter function for selectedVote (needed for testing)
 function setSelectedVote(value) {
   selectedVote = value;
+}
+
+// Setter function for votingTimerInterval (needed for testing)
+function setVotingTimerInterval(intervalId) {
+  votingTimerInterval = intervalId;
 }
 
 function selectVote(playerName, element) {
@@ -1569,6 +1620,14 @@ return; // Don't tally until all alive players have voted
 }
 
 console.log('✅ All alive players have voted, proceeding with tally...');
+
+// Clear voting timer if it's still running (everyone voted before time expired)
+if (votingTimerInterval !== null) {
+console.log('⏱️  Clearing voting timer (votes completed early)');
+clearInterval(votingTimerInterval);
+votingTimerInterval = null;
+}
+
 gameState.votesTallied = true;
 
 const voteCounts = {};
@@ -1996,6 +2055,7 @@ gameState.winner = null;
 gameState.meetingCaller = null;
 gameState.meetingType = null;
 gameState.roomCode = newRoomCode;
+gameState.hostName = null;  // Reset host so it can be set for new session
 
 // Add host to players list (host is automatically ready since they initiated the new game)
 if (myPlayerName) {
@@ -2110,6 +2170,7 @@ gameState.winner = null;
 gameState.meetingCaller = null;
 gameState.meetingType = null;
 gameState.roomCode = '';
+gameState.hostName = null;  // Reset host so it can be set for new session
 currentGameId = null;  // Clear current game ID - new one will be created when host clicks "Create Game"
 
 // Clear all game end UI
@@ -2336,6 +2397,8 @@ export {
   leaveGame,
   updateLobby,
   editSettings,
+  cancelSettingsEdit,
+  saveSettings,
   startGame,
   displayGameplay,
   renderPlayerTasks,
@@ -2355,12 +2418,12 @@ export {
   selectMeetingType,
   acknowledgeMeeting,
   playAlarmSound,
-  startDiscussionTimer,
   updateReadyStatus,
   hostStartVoting,
   startVoting,
   selectVote,
   setSelectedVote,
+  setVotingTimerInterval,
   submitVote,
   tallyVotes,
   displayVoteResults,

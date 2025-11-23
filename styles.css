@@ -966,6 +966,43 @@
             }
         }
 
+        /* Settings Modal - Backdrop */
+        .modal-backdrop {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 998;
+            display: none;
+        }
+
+        .modal-backdrop:not(.hidden) {
+            display: block;
+        }
+
+        /* Settings Modal - Setup Phase as Modal */
+        #setup-phase.modal-mode {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 999;
+            max-width: 800px;
+            width: 95%;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+        }
+
+        /* Small button for close */
+        .btn-small {
+            padding: 8px 16px;
+            font-size: 0.9rem;
+            min-height: 36px;
+        }
+
         /* Victory/Defeat Screen */
         .end-screen {
             text-align: center;
