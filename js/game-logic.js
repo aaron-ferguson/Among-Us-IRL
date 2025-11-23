@@ -717,6 +717,17 @@ const traitorNames = shuffled.slice(0, gameState.settings.traitorCount).map(p =>
 const allTasks = [];
 const uniqueTasks = [];
 
+// CRITICAL: Validate selectedRooms exists and has content before assigning tasks
+// This prevents the "no tasks" bug in subsequent game sessions
+if (!gameState.settings.selectedRooms || Object.keys(gameState.settings.selectedRooms).length === 0) {
+  console.error('Cannot start game: No rooms/tasks configured!');
+  alert('Error: No rooms or tasks are configured for this game. Please return to setup and configure rooms and tasks before starting.');
+  gameState.stage = 'setup';
+  document.getElementById('waiting-room').classList.add('hidden');
+  document.getElementById('setup-phase').classList.remove('hidden');
+  return;
+}
+
 Object.keys(gameState.settings.selectedRooms).forEach(roomName => {
 const room = gameState.settings.selectedRooms[roomName];
 if (room.enabled) {

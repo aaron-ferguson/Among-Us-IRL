@@ -31,6 +31,7 @@ import {
   newGameNewSettings
 } from '../js/game-logic.js'
 import { gameState, myPlayerName, isGameCreator, setMyPlayerName, setIsGameCreator, setCurrentGameId } from '../js/game-state.js'
+import { ROOMS_AND_TASKS } from '../js/rooms-and-tasks.js'
 
 describe('Room Code Generation', () => {
   it('should generate a 4-character alphanumeric code', () => {
@@ -3403,6 +3404,130 @@ describe('New Session Creation - Host Crown Fix', () => {
   })
 })
 
-// TODO: Add more comprehensive integration tests for:
-// - newGameSameSettings (requires Supabase mocking)
-// - newGameNewSettings (requires Supabase mocking)
+describe('Subsequent Game Sessions - Task Assignment', () => {
+  beforeEach(() => {
+    // Ensure selectedRooms is initialized before each test
+    // This simulates the default state from game-state.js
+    if (!gameState.settings.selectedRooms) {
+      gameState.settings.selectedRooms = {}
+    }
+
+    // Mock window.location for URL/QR code generation
+    global.window = {
+      location: {
+        origin: 'http://localhost:3000',
+        pathname: '/'
+      }
+    }
+
+    // Mock DOM elements needed by newGameSameSettings and startGame
+    const mockElement = {
+      src: '',
+      textContent: '',
+      innerHTML: '',
+      value: '',
+      checked: false,
+      appendChild: vi.fn(),
+      classList: {
+        add: vi.fn(),
+        remove: vi.fn()
+      },
+      style: {
+        color: '',
+        fontWeight: '',
+        display: '',
+        cssText: ''
+      }
+    }
+
+    global.document = {
+      getElementById: vi.fn((id) => mockElement),
+      createElement: vi.fn((tag) => ({ ...mockElement }))
+    }
+  })
+
+  it('should assign tasks to all players in subsequent game session', async () => {
+    // PROBLEM: Players have no tasks in subsequent game sessions
+    // ROOT CAUSE: gameState.settings.selectedRooms might be empty or not preserved
+    // TEST: Verify tasks are assigned after newGameSameSettings + startGame
+
+    // Setup: Initialize rooms and tasks (simulating first game setup)
+    // Populate selectedRooms directly (without DOM rendering)
+    Object.keys(ROOMS_AND_TASKS).forEach(roomName => {
+      gameState.settings.selectedRooms[roomName] = {
+        enabled: true,
+        tasks: ROOMS_AND_TASKS[roomName].map(task => ({
+          name: task,
+          enabled: true,
+          unique: false
+        }))
+      }
+    })
+
+    // Verify selectedRooms is populated
+    expect(Object.keys(gameState.settings.selectedRooms).length).toBeGreaterThan(0)
+
+    // Setup first game
+    gameState.stage = 'waiting'
+    gameState.settings.tasksPerPlayer = 3
+    gameState.settings.traitorCount = 1
+    gameState.players = [
+      { name: 'Player1', ready: true, role: null, tasks: [], tasksCompleted: 0, alive: true },
+      { name: 'Player2', ready: true, role: null, tasks: [], tasksCompleted: 0, alive: true },
+      { name: 'Player3', ready: true, role: null, tasks: [], tasksCompleted: 0, alive: true }
+    ]
+    setIsGameCreator(true)
+    setMyPlayerName('Player1')
+    gameState.hostName = 'Player1'
+
+    // Start first game and verify tasks assigned
+    await startGame()
+    expect(gameState.players[0].tasks.length).toBe(3)
+    expect(gameState.players[1].tasks.length).toBe(3)
+    expect(gameState.players[2].tasks.length).toBe(3)
+
+    // Save settings reference before new session
+    const savedSelectedRooms = { ...gameState.settings.selectedRooms }
+
+    // Simulate ending game and starting new session
+    gameState.stage = 'ended'
+    gameState.gameEnded = true
+
+    // Call newGameSameSettings (this should preserve selectedRooms)
+    await newGameSameSettings()
+
+    // Verify selectedRooms was preserved
+    expect(Object.keys(gameState.settings.selectedRooms).length).toBe(
+      Object.keys(savedSelectedRooms).length
+    )
+    expect(gameState.settings.selectedRooms).toBeDefined()
+    expect(Object.keys(gameState.settings.selectedRooms).length).toBeGreaterThan(0)
+
+    // Add players to new session
+    gameState.stage = 'waiting'
+    gameState.players = [
+      { name: 'Player1', ready: true, role: null, tasks: [], tasksCompleted: 0, alive: true },
+      { name: 'Player2', ready: true, role: null, tasks: [], tasksCompleted: 0, alive: true },
+      { name: 'Player3', ready: true, role: null, tasks: [], tasksCompleted: 0, alive: true }
+    ]
+
+    // Start new game - this is where tasks should be assigned
+    await startGame()
+
+    // CRITICAL: Verify all players have tasks assigned
+    expect(gameState.players[0].tasks).toBeDefined()
+    expect(gameState.players[0].tasks.length).toBe(3)
+    expect(gameState.players[1].tasks.length).toBe(3)
+    expect(gameState.players[2].tasks.length).toBe(3)
+
+    // Verify tasks have proper structure
+    gameState.players.forEach(player => {
+      player.tasks.forEach(task => {
+        expect(task).toHaveProperty('room')
+        expect(task).toHaveProperty('task')
+        expect(typeof task.room).toBe('string')
+        expect(typeof task.task).toBe('string')
+      })
+    })
+  })
+})

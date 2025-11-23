@@ -11,6 +11,12 @@ container.innerHTML = '';
 console.log('ROOMS_AND_TASKS keys:', Object.keys(ROOMS_AND_TASKS));
 console.log('Total rooms:', Object.keys(ROOMS_AND_TASKS).length);
 
+// Ensure selectedRooms exists (defensive programming)
+if (!gameState.settings.selectedRooms) {
+  console.warn('selectedRooms was undefined, initializing as empty object');
+  gameState.settings.selectedRooms = {};
+}
+
 Object.keys(ROOMS_AND_TASKS).forEach(roomName => {
 console.log('Initializing room:', roomName);
 // Initialize in gameState

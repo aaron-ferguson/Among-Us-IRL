@@ -18,6 +18,7 @@ import {
   setIsGameCreator,
   setPlayerExistenceInterval
 } from './game-state.js';
+import { ROOMS_AND_TASKS } from './rooms-and-tasks.js';
 
 async function createGameInDB() {
 if (!supabaseClient) {
@@ -83,6 +84,27 @@ gameState.settings = gameData.settings;
 gameState.meetingsUsed = gameData.meetings_used;
 gameState.gameEnded = gameData.game_ended;
 gameState.winner = gameData.winner;
+
+// CRITICAL: Validate selectedRooms after loading from database
+// If missing or empty, reinitialize from ROOMS_AND_TASKS to prevent "no tasks" bug
+if (!gameState.settings.selectedRooms || Object.keys(gameState.settings.selectedRooms).length === 0) {
+  console.warn('selectedRooms missing or empty after DB load - reinitializing from ROOMS_AND_TASKS');
+  gameState.settings.selectedRooms = {};
+
+  // Populate with default rooms and tasks
+  Object.keys(ROOMS_AND_TASKS).forEach(roomName => {
+    gameState.settings.selectedRooms[roomName] = {
+      enabled: true,
+      tasks: ROOMS_AND_TASKS[roomName].map(task => ({
+        name: task,
+        enabled: true,
+        unique: false
+      }))
+    };
+  });
+
+  console.log('✓ Reinitialized selectedRooms with', Object.keys(gameState.settings.selectedRooms).length, 'rooms');
+}
 
 // Fetch players
 const { data: playersData, error: playersError } = await supabaseClient
