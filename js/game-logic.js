@@ -600,6 +600,12 @@ gameState.players.splice(playerIndex, 1);
 console.log('Removed from local state');
 }
 
+// Remove their vote if they voted (prevents blocking vote tallying)
+if (gameState.votes && gameState.votes[playerName]) {
+delete gameState.votes[playerName];
+console.log('Removed vote from kicked player');
+}
+
 // Remove from database
 console.log('Calling removePlayerFromDB...');
 await removePlayerFromDB(playerName);
@@ -609,7 +615,7 @@ updateLobby();
 }
 }
 
-function editMyName() {
+async function editMyName() {
 if (!myPlayerName) return;
 
 const playerIndex = gameState.players.findIndex(p => p.name === myPlayerName);
@@ -649,9 +655,9 @@ updateLobby();
 
 // Update in database - need to delete old and insert new (since name is part of unique constraint)
 if (supabaseClient && currentGameId) {
-removePlayerFromDB(oldName).then(async () => {
+// Properly await the deletion before adding to prevent race condition
+await removePlayerFromDB(oldName);
 await addPlayerToDB(trimmedName, true); // Add with ready=true
-});
 }
 }
 
@@ -1374,29 +1380,33 @@ await updatePlayerInDB(playerName, { alive: player.alive });
 }
 
 function updateReadyStatus() {
-// Only count alive players for ready status
+// Count alive players for voting purposes
 const alivePlayers = gameState.players.filter(p => p.alive);
 const totalAliveCount = alivePlayers.length;
-const readyCount = Object.keys(gameState.meetingReady || {}).filter(playerName => {
+const aliveReadyCount = Object.keys(gameState.meetingReady || {}).filter(playerName => {
 const player = gameState.players.find(p => p.name === playerName);
 return player && player.alive;
 }).length;
 
-document.getElementById('ready-for-vote-count').textContent = readyCount;
+document.getElementById('ready-for-vote-count').textContent = aliveReadyCount;
 document.getElementById('total-players-count').textContent = totalAliveCount;
 
-// Update ready players list (only alive players)
+// Update ready players list - INCLUDE ALL PLAYERS (alive and eliminated)
+// This ensures eliminated players feel included in the social experience
 const readyList = document.getElementById('players-ready-list');
-const readyPlayers = Object.keys(gameState.meetingReady || {}).filter(playerName => {
+const allReadyPlayers = Object.keys(gameState.meetingReady || {}).map(playerName => {
 const player = gameState.players.find(p => p.name === playerName);
-return player && player.alive;
-});
-readyList.textContent = readyPlayers.length > 0
-? readyPlayers.join(', ')
+if (!player) return null;
+// Add indicator for eliminated players
+return player.alive ? playerName : `${playerName} (observing)`;
+}).filter(name => name !== null);
+
+readyList.textContent = allReadyPlayers.length > 0
+? allReadyPlayers.join(', ')
 : 'None yet';
 
 // Show start voting button to host if all ALIVE players are ready
-if (isHost() && readyCount === totalAliveCount && totalAliveCount > 0) {
+if (isHost() && aliveReadyCount === totalAliveCount && totalAliveCount > 0) {
 document.getElementById('host-start-voting-btn').classList.remove('hidden');
 document.getElementById('waiting-for-players-msg').classList.add('hidden');
 } else {
@@ -1519,6 +1529,13 @@ votingTimerInterval = null;
 console.log('=== VOTING TIMER EXPIRED ===');
 console.log('Current selectedVote:', selectedVote);
 console.log('myPlayerName:', myPlayerName);
+
+// Guard: Don't auto-submit if voting has already been tallied
+if (gameState.votesTallied) {
+console.log('❌ Votes already tallied, ignoring timer expiry');
+return;
+}
+
 // Auto-skip if no vote selected
 if (!selectedVote) {
 selectedVote = 'skip';
@@ -1568,6 +1585,12 @@ console.log('=== SUBMIT VOTE CALLED ===');
 console.log('myPlayerName:', myPlayerName);
 console.log('selectedVote:', selectedVote);
 console.log('Current gameState.votes:', gameState.votes);
+
+// Guard: Don't submit if voting has already been tallied
+if (gameState.votesTallied) {
+console.log('❌ Voting has already ended, ignoring late vote submission');
+return;
+}
 
 // Disable submit button to prevent double-voting
 document.getElementById('submit-vote-btn').disabled = true;

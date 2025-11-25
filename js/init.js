@@ -10,6 +10,9 @@ import {
   showAddTaskModal,
   addTask,
   deleteTask,
+  handleTaskDelete,
+  toggleRoom,
+  toggleTaskEnabled,
   toggleCollapsible
 } from './room-task-manager.js';
 import {
@@ -30,6 +33,9 @@ Object.assign(window, gameLogic, {
   showAddTaskModal,
   addTask,
   deleteTask,
+  handleTaskDelete,
+  toggleRoom,
+  toggleTaskEnabled,
   toggleCollapsible
 });
 

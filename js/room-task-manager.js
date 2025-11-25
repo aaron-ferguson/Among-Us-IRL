@@ -613,6 +613,8 @@ export {
   showAddTaskModal,
   addTask,
   deleteTask,
+  toggleRoom,
+  toggleTaskEnabled,
   toggleCollapsible,
   toggleUniqueVisibility,
   setupUniqueRadioListeners,

@@ -20,6 +20,9 @@ import {
 } from './game-state.js';
 import { ROOMS_AND_TASKS } from './rooms-and-tasks.js';
 
+// Track last rendered stage to avoid unnecessary DOM rebuilds that can reset scroll position
+let lastRenderedStage = null;
+
 async function createGameInDB() {
 if (!supabaseClient) {
 console.warn('Supabase not configured - running in offline mode');
@@ -178,8 +181,21 @@ return;
 }
 
 try {
+// Fetch current database state to merge meetingReady (prevents race condition)
+const { data: currentGame, error: fetchError } = await supabaseClient
+.from('games')
+.select('settings')
+.eq('id', currentGameId)
+.single();
+
+if (fetchError) throw fetchError;
+
+// Merge local meetingReady with existing database state to prevent overwrites
+const existingMeetingReady = currentGame?.settings?.meetingReady || {};
+const mergedMeetingReady = { ...existingMeetingReady, ...gameState.meetingReady };
+
 // Ensure meeting state is in settings for DB sync
-gameState.settings.meetingReady = gameState.meetingReady;
+gameState.settings.meetingReady = mergedMeetingReady;
 gameState.settings.votes = gameState.votes;
 gameState.settings.votingStarted = gameState.votingStarted;
 gameState.settings.meetingCaller = gameState.meetingCaller;
@@ -507,15 +523,18 @@ console.log('UPDATE event - player:', newData.name);
 const playerIndex = gameState.players.findIndex(p => p.name === newData.name);
 console.log('Player index:', playerIndex);
 if (playerIndex !== -1) {
+const existingPlayer = gameState.players[playerIndex];
+// Merge update with existing data to preserve fields not included in the update
 gameState.players[playerIndex] = {
+...existingPlayer,
 name: newData.name,
 role: newData.role,
 ready: newData.ready,
-tasks: newData.tasks || [],
+tasks: newData.tasks !== undefined && newData.tasks !== null ? newData.tasks : existingPlayer.tasks,
 alive: newData.alive,
-tasksCompleted: newData.tasks_completed || 0,
-votedFor: newData.voted_for,
-emergencyMeetingsUsed: newData.emergency_meetings_used || 0
+tasksCompleted: newData.tasks_completed !== undefined ? newData.tasks_completed : existingPlayer.tasksCompleted,
+votedFor: newData.voted_for !== undefined ? newData.voted_for : existingPlayer.votedFor,
+emergencyMeetingsUsed: newData.emergency_meetings_used !== undefined ? newData.emergency_meetings_used : existingPlayer.emergencyMeetingsUsed
 };
 console.log('Player updated! Updating UI...');
 // Call appropriate UI update based on current stage
@@ -570,6 +589,14 @@ console.log('Current stage:', gameState.stage);
 console.log('myPlayerName:', myPlayerName);
 console.log('isHost():', isHost());
 console.log('currentGameId:', currentGameId);
+
+// Avoid rerendering the same stage repeatedly; it forces the page to jump to the top on mobile
+if (gameState.stage === lastRenderedStage) {
+console.log('Stage unchanged; skipping UI rebuild to preserve scroll position');
+return;
+}
+
+lastRenderedStage = gameState.stage;
 
 // Show/hide appropriate UI sections based on stage
 if (gameState.stage === 'waiting') {
