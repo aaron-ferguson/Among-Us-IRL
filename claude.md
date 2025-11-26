@@ -130,9 +130,9 @@ Console logs are present in initialization functions. Check browser console for:
 1. **Modular architecture** - Separate CSS and JS files for optimal performance and maintainability
 2. **No external dependencies** - Pure vanilla stack only (except Supabase CDN for multi-device sync)
 3. **No build process** - Files are served as-is; no compilation, bundling, or transpilation required
-4. **Client-side focused** - Core app works offline; Supabase enables optional multi-device sync
+4. **Real-time multiplayer architecture** - Requires Supabase backend for synchronizing game state across all player devices in real-time
 5. **View switcher pattern** - Simulates multiple devices in single browser for testing
-6. **Host-centric** - UI designed from host perspective with player view simulation
+6. **Synchronized multiplayer** - All players share real-time game state; host performs administrative functions (setup, player elimination, meeting control)
 
 ## Supabase Backend Setup
 
