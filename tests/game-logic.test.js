@@ -198,6 +198,7 @@ describe('QR Code Integration with Game Sessions', () => {
       meetingRoom: { value: 'Living Room' },
       meetingLimit: { value: '3' },
       meetingTimer: { value: '60' },
+      emergencyMeetingCooldown: { value: '30' },
       additionalRules: { value: '' },
       minPlayersDisplay: { textContent: '' },
       maxPlayersDisplay: { textContent: '' },
@@ -223,6 +224,7 @@ describe('QR Code Integration with Game Sessions', () => {
           'meeting-room': mockElements.meetingRoom,
           'meeting-limit': mockElements.meetingLimit,
           'meeting-timer': mockElements.meetingTimer,
+          'emergency-meeting-cooldown': mockElements.emergencyMeetingCooldown,
           'additional-rules': mockElements.additionalRules,
           'min-players-display': mockElements.minPlayersDisplay,
           'max-players-display': mockElements.maxPlayersDisplay,
@@ -4812,6 +4814,7 @@ describe('Emergency Meeting Cooldown Settings', () => {
 
     // Mock DOM elements
     mockElements = {
+      'qr-code-image': { src: '' },
       'min-players': { value: '4' },
       'max-players': { value: '10' },
       'tasks-per-player': { value: '4' },
@@ -4826,6 +4829,9 @@ describe('Emergency Meeting Cooldown Settings', () => {
       'room-code': { textContent: '' },
       'setup-phase': { classList: { add: vi.fn(), remove: vi.fn() } },
       'waiting-room': { classList: { add: vi.fn(), remove: vi.fn() } },
+      'join-form': { classList: { add: vi.fn(), remove: vi.fn() } },
+      'already-joined': { classList: { add: vi.fn(), remove: vi.fn() } },
+      'my-player-name': { textContent: '' },
       'min-players-display': { textContent: '' },
       'max-players-display': { textContent: '' },
       'traitor-count-display': { textContent: '' }
@@ -5386,11 +5392,15 @@ describe('Emergency Meeting Cooldown - Integration Tests', () => {
     mockElements['emergency-meetings-text'] = { textContent: '' }
     mockElements['meeting-type-selection'] = { classList: { remove: vi.fn() } }
     mockElements['call-meeting-btn'] = {
+      disabled: false,
+      style: {},
       parentElement: { classList: { add: vi.fn() } }
     }
 
     callMeeting()
-    await new Promise(resolve => setTimeout(resolve, 10))
+
+    // Advance timers to allow any async operations to complete
+    await vi.advanceTimersByTimeAsync(350)
 
     // Button should be disabled (implementation will do this)
     expect(emergencyBtn.disabled).toBe(true)
@@ -5410,11 +5420,15 @@ describe('Emergency Meeting Cooldown - Integration Tests', () => {
     mockElements['emergency-meetings-text'] = { textContent: '' }
     mockElements['meeting-type-selection'] = { classList: { remove: vi.fn() } }
     mockElements['call-meeting-btn'] = {
+      disabled: false,
+      style: {},
       parentElement: { classList: { add: vi.fn() } }
     }
 
     callMeeting()
-    await new Promise(resolve => setTimeout(resolve, 10))
+
+    // Advance timers to allow any async operations to complete
+    await vi.advanceTimersByTimeAsync(350)
 
     // Body report button should remain enabled
     expect(reportBtn.disabled).toBe(false)
