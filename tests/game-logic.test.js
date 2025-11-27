@@ -2855,15 +2855,21 @@ describe('Meeting Flow', () => {
   })
 
   describe('callMeeting', () => {
-    it('should show meeting type selection', () => {
+    it('should show meeting type selection', async () => {
       callMeeting()
+
+      // Wait for setTimeout(0) to fire
+      await new Promise(resolve => setTimeout(resolve, 10))
 
       expect(mockElements.meetingTypeSelection.classList.remove).toHaveBeenCalledWith('hidden')
       expect(mockElements.callMeetingBtn.parentElement.classList.add).toHaveBeenCalledWith('hidden')
     })
 
-    it('should not show meeting overlay yet', () => {
+    it('should not show meeting overlay yet', async () => {
       callMeeting()
+
+      // Wait for setTimeout(0) to fire
+      await new Promise(resolve => setTimeout(resolve, 10))
 
       expect(mockElements.meetingOverlay.classList.remove).not.toHaveBeenCalled()
     })
