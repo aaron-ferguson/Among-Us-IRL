@@ -181,7 +181,13 @@ return code;
 }
 
 function getGameURL() {
-const baseUrl = window.location.origin + window.location.pathname;
+// Replace localhost with local IP for mobile testing
+let origin = window.location.origin;
+if (origin.includes('localhost') || origin.includes('127.0.0.1')) {
+// Use local network IP instead of localhost for mobile device access
+origin = origin.replace('localhost', '192.168.4.64').replace('127.0.0.1', '192.168.4.64');
+}
+const baseUrl = origin + window.location.pathname;
 return `${baseUrl}?room=${gameState.roomCode}`;
 }
 
