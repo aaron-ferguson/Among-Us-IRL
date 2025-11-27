@@ -118,6 +118,12 @@ clearInterval(votingTimerInterval);
 votingTimerInterval = null;
 }
 
+// Clear emergency meeting cooldown timer if it's running
+if (gameState.emergencyMeetingCooldownInterval !== null) {
+console.log('Clear emergency meeting cooldown timer (returning to menu)');
+stopEmergencyMeetingCooldownTimer();
+}
+
 // Unsubscribe from channels FIRST to prevent callbacks from firing
 unsubscribeFromChannels();
 
@@ -266,6 +272,7 @@ gameState.settings.cooldownReduction = parseInt(document.getElementById('cooldow
 gameState.settings.meetingRoom = document.getElementById('meeting-room').value;
 gameState.settings.meetingLimit = parseInt(document.getElementById('meeting-limit').value);
 gameState.settings.meetingTimer = parseInt(document.getElementById('meeting-timer').value);
+gameState.settings.emergencyMeetingCooldown = parseInt(document.getElementById('emergency-meeting-cooldown').value);
 gameState.settings.additionalRules = document.getElementById('additional-rules').value;
 
 // Validation
@@ -419,6 +426,7 @@ gameState.settings.cooldownReduction = parseInt(document.getElementById('cooldow
 gameState.settings.meetingRoom = document.getElementById('meeting-room').value;
 gameState.settings.meetingLimit = parseInt(document.getElementById('meeting-limit').value);
 gameState.settings.meetingTimer = parseInt(document.getElementById('meeting-timer').value);
+gameState.settings.emergencyMeetingCooldown = parseInt(document.getElementById('emergency-meeting-cooldown').value);
 gameState.settings.additionalRules = document.getElementById('additional-rules').value;
 
 // Update database if using Supabase
@@ -1197,13 +1205,21 @@ const meetingsRemaining = gameState.settings.meetingLimit - meetingsUsed;
 const emergencyBtn = document.getElementById('emergency-meeting-btn');
 const emergencyText = document.getElementById('emergency-meetings-text');
 
+// Check if on cooldown
+const onCooldown = isEmergencyMeetingOnCooldown();
+
 if (emergencyText) {
+if (onCooldown) {
+const remainingSeconds = getRemainingCooldown();
+emergencyText.textContent = `On cooldown (${remainingSeconds}s remaining)`;
+} else {
 emergencyText.textContent = `${meetingsRemaining} emergency meeting${meetingsRemaining !== 1 ? 's' : ''} remaining`;
 }
+}
 
-// Enable/disable emergency meeting button based on meetings remaining
+// Enable/disable emergency meeting button based on cooldown and meetings remaining
 if (emergencyBtn) {
-if (meetingsRemaining <= 0) {
+if (onCooldown || meetingsRemaining <= 0) {
 emergencyBtn.disabled = true;
 emergencyBtn.style.opacity = '0.5';
 emergencyBtn.style.cursor = 'not-allowed';
@@ -1284,6 +1300,79 @@ document.getElementById('meeting-overlay').classList.remove('hidden');
 
 // Play alarm sound
 playAlarmSound();
+}
+
+/**
+ * Check if emergency meetings are currently on cooldown
+ * @returns {boolean} True if on cooldown, false otherwise
+ */
+function isEmergencyMeetingOnCooldown() {
+if (!gameState.emergencyMeetingCooldownEndTime) {
+return false;
+}
+return Date.now() < gameState.emergencyMeetingCooldownEndTime;
+}
+
+/**
+ * Get remaining cooldown time in seconds
+ * @returns {number} Seconds remaining (0 if not on cooldown)
+ */
+function getRemainingCooldown() {
+if (!gameState.emergencyMeetingCooldownEndTime) {
+return 0;
+}
+const remaining = gameState.emergencyMeetingCooldownEndTime - Date.now();
+return Math.max(0, Math.ceil(remaining / 1000));
+}
+
+/**
+ * Start the cooldown countdown timer
+ */
+function startEmergencyMeetingCooldownTimer() {
+// Clear existing timer if any
+if (gameState.emergencyMeetingCooldownInterval !== null) {
+clearInterval(gameState.emergencyMeetingCooldownInterval);
+gameState.emergencyMeetingCooldownInterval = null;
+}
+
+// Don't start timer if cooldown is not active
+if (!isEmergencyMeetingOnCooldown()) {
+return;
+}
+
+const cooldownDisplay = document.getElementById('emergency-meeting-cooldown-display');
+
+// Update every second
+gameState.emergencyMeetingCooldownInterval = setInterval(() => {
+const remaining = getRemainingCooldown();
+
+if (remaining <= 0) {
+// Cooldown expired
+clearInterval(gameState.emergencyMeetingCooldownInterval);
+gameState.emergencyMeetingCooldownInterval = null;
+
+if (cooldownDisplay) {
+cooldownDisplay.textContent = '';
+cooldownDisplay.classList.add('hidden');
+}
+} else {
+// Update display
+if (cooldownDisplay) {
+cooldownDisplay.textContent = `Next emergency meeting in ${remaining}s`;
+cooldownDisplay.classList.remove('hidden');
+}
+}
+}, 1000);
+}
+
+/**
+ * Stop and clear the cooldown timer
+ */
+function stopEmergencyMeetingCooldownTimer() {
+if (gameState.emergencyMeetingCooldownInterval !== null) {
+clearInterval(gameState.emergencyMeetingCooldownInterval);
+gameState.emergencyMeetingCooldownInterval = null;
+}
 }
 
 function callMeeting() {
@@ -2128,6 +2217,17 @@ document.getElementById('discussion-phase').classList.add('hidden');
 document.getElementById('game-phase').classList.remove('hidden');
 gameState.stage = 'playing';
 
+// Start emergency meeting cooldown if meeting was emergency type
+if (gameState.meetingType === 'emergency' && gameState.settings.emergencyMeetingCooldown > 0) {
+const cooldownMs = gameState.settings.emergencyMeetingCooldown * 1000;
+gameState.emergencyMeetingCooldownEndTime = Date.now() + cooldownMs;
+
+console.log(`Starting emergency meeting cooldown: ${gameState.settings.emergencyMeetingCooldown}s`);
+
+// Start the countdown timer
+startEmergencyMeetingCooldownTimer();
+}
+
 // Reset meeting state locally
 gameState.meetingReady = {};
 gameState.votes = {};
@@ -2182,6 +2282,13 @@ console.log('Clearing voting timer (game ended during voting)');
 clearInterval(votingTimerInterval);
 votingTimerInterval = null;
 }
+
+// Clear emergency meeting cooldown timer and state
+if (gameState.emergencyMeetingCooldownInterval !== null) {
+console.log('Clearing emergency meeting cooldown timer (game ended)');
+stopEmergencyMeetingCooldownTimer();
+}
+gameState.emergencyMeetingCooldownEndTime = null;
 
 // Cleanup all subscriptions
 if (supabaseClient) {
@@ -2772,6 +2879,10 @@ export {
   declineNewGameInvitation,
   newGameNewSettings,
   votingPlayerSnapshot,
-  setVotingPlayerSnapshot
+  setVotingPlayerSnapshot,
+  isEmergencyMeetingOnCooldown,
+  getRemainingCooldown,
+  startEmergencyMeetingCooldownTimer,
+  stopEmergencyMeetingCooldownTimer
 };
 

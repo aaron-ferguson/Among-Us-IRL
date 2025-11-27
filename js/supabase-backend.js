@@ -126,13 +126,13 @@ const subscriptionManager = new SubscriptionManager();
 
 function processGameUpdate(newData) {
   console.log('Processing game update - sequence:', newData.sequence_number);
-  console.error('=== DATABASE COLUMN DEBUG ===');
-  console.error('newData.meeting_ready:', newData.meeting_ready);
-  console.error('newData.votes:', newData.votes);
-  console.error('newData.vote_results:', newData.vote_results);
-  console.error('newData.settings.meetingReady:', newData.settings?.meetingReady);
-  console.error('newData.settings.votes:', newData.settings?.votes);
-  console.error('============================');
+  console.info('=== DATABASE COLUMN DEBUG ===');
+  console.info('newData.meeting_ready:', newData.meeting_ready);
+  console.info('newData.votes:', newData.votes);
+  console.info('newData.vote_results:', newData.vote_results);
+  console.info('newData.settings.meetingReady:', newData.settings?.meetingReady);
+  console.info('newData.settings.votes:', newData.settings?.votes);
+  console.info('============================');
 
   // Update local state from DB
   // Only update hostName if it's not null (prevent overwriting valid host with null)

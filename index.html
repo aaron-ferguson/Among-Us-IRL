@@ -145,6 +145,15 @@
                         <input type="number" id="meeting-timer" min="30" max="300" value="60">
                     </div>
                 </div>
+                <div class="input-row">
+                    <div class="input-group">
+                        <label for="emergency-meeting-cooldown">Emergency Meeting Cooldown (seconds):</label>
+                        <input type="number" id="emergency-meeting-cooldown" min="0" max="120" value="30">
+                        <small style="color: #a0a0a0; display: block; margin-top: 5px;">
+                            Cooldown after emergency meeting ends (0 = no cooldown)
+                        </small>
+                    </div>
+                </div>
 
                 <!-- Additional Rules -->
                 <h3>Additional Rules</h3>
@@ -273,6 +282,10 @@
                 </button>
                 <p style="text-align: center; color: #a0a0a0; margin-top: 10px;">
                     Emergency meetings remaining: <span id="meetings-remaining">1</span>
+                </p>
+                <!-- Emergency Meeting Cooldown Display -->
+                <p id="emergency-meeting-cooldown-display" class="hidden"
+                   style="text-align: center; color: #ffaa00; margin-top: 10px; font-weight: bold;">
                 </p>
             </div>
 

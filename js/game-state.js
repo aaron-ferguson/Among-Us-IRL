@@ -41,6 +41,7 @@ cooldownReduction: 5,
 meetingRoom: '',
 meetingLimit: 1,
 meetingTimer: 60,
+emergencyMeetingCooldown: 30,
 additionalRules: '',
 selectedRooms: {},
 uniqueTasks: []
@@ -51,6 +52,8 @@ roleRevealed: false,
 meetingsUsed: 0,
 meetingCaller: null,
 meetingType: null,
+emergencyMeetingCooldownEndTime: null,
+emergencyMeetingCooldownInterval: null,
 gameEnded: false,
 winner: null
 };

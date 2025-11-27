@@ -1,4 +1,5 @@
 // Game data structure
+/*
 const ROOMS_AND_TASKS = {
 "Anywhere": [
 "Power Down Protocol: Close your eyes, stand still, and count out loud for 30 seconds."
@@ -49,8 +50,8 @@ const ROOMS_AND_TASKS = {
 "Put your head in the dryer for 10 seconds."
 ]
 };
+*/
 
-/*
 // This set of rooms and tasks is temporary until we can store different sets and users. 
 const ROOMS_AND_TASKS = {
 "Anywhere": [
@@ -95,7 +96,6 @@ const ROOMS_AND_TASKS = {
 "Play Time: Play with a toy for 20 seconds."
 ]
 };
-*/
 
 // Export for testing and module usage
 export { ROOMS_AND_TASKS };
