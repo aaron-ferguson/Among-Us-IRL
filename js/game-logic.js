@@ -1504,6 +1504,12 @@ startVoting();
 }
 
 function startVoting() {
+// Guard: Don't start voting if player hasn't joined the game
+if (!myPlayerName) {
+console.warn('Cannot start voting - player has not joined the game');
+return;
+}
+
 // Cancel meeting ready subscription when voting starts
 cleanupMeetingSubscription();
 
@@ -1603,6 +1609,12 @@ clearInterval(votingTimerInterval);
 votingTimerInterval = null;
 console.log('Voting timer expired for ', myPlayerName);
 
+// Guard: Don't auto-submit if player hasn't joined
+if (!myPlayerName) {
+console.warn('Timer expired but player has not joined - skipping auto-submit');
+return;
+}
+
 // Guard: Don't auto-submit if voting has already been tallied
 if (gameState.votesTallied) {
 console.log('Votes already tallied, ignoring timer expiry');
@@ -1655,6 +1667,12 @@ submitBtn.disabled = false;
 
 async function submitVote() {
 console.log('=== SUBMIT VOTE CALLED ===');
+
+// Guard: Don't submit if player hasn't joined
+if (!myPlayerName) {
+console.error('Cannot submit vote - player has not joined the game');
+return;
+}
 
 // Guard: Don't submit if voting has already been tallied
 if (gameState.votesTallied) {
