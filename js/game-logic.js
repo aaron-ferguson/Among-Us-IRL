@@ -87,6 +87,9 @@ document.getElementById('setup-phase').classList.add('hidden');
 document.getElementById('waiting-room').classList.remove('hidden');
 document.getElementById('room-code').textContent = roomCode;
 
+// Update URL with room code for refresh persistence
+updateURLWithRoomCode();
+
 // Update displays
 document.getElementById('min-players-display').textContent = gameState.settings.minPlayers;
 document.getElementById('max-players-display').textContent = gameState.settings.maxPlayers;
@@ -191,6 +194,14 @@ const baseUrl = origin + window.location.pathname;
 return `${baseUrl}?room=${gameState.roomCode}`;
 }
 
+function updateURLWithRoomCode() {
+// Update browser URL to include room code so users can refresh without losing session
+if (gameState.roomCode && typeof window !== 'undefined' && window.history) {
+const newUrl = `${window.location.pathname}?room=${gameState.roomCode}`;
+window.history.replaceState({ roomCode: gameState.roomCode }, '', newUrl);
+}
+}
+
 function copyGameURL() {
 const url = getGameURL();
 const feedback = document.getElementById('copy-feedback');
@@ -285,6 +296,9 @@ console.log('Game created - isGameCreator set to true');
 // Generate room code
 gameState.roomCode = generateRoomCode();
 document.getElementById('room-code').textContent = gameState.roomCode;
+
+// Update URL with room code for refresh persistence
+updateURLWithRoomCode();
 
 // Update displays
 document.getElementById('min-players-display').textContent = gameState.settings.minPlayers;
@@ -2366,6 +2380,9 @@ gameState.meetingType = null;
 gameState.meetingReady = {};  // Reset meeting acknowledgments for new session
 gameState.roomCode = newRoomCode;
 gameState.hostName = null;  // Reset host so it can be set for new session
+
+// Update URL with new room code for refresh persistence
+updateURLWithRoomCode();
 
 // Add host to players list (host is automatically ready since they initiated the new game)
 if (myPlayerName) {
