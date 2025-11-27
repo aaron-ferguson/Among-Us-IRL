@@ -129,7 +129,8 @@ describe('QR Code Generation', () => {
   it('should encode game URL in QR code data parameter', () => {
     generateQRCode()
 
-    const expectedGameUrl = 'http://localhost:3000/?room=ABC123'
+    // localhost is replaced with local IP for mobile testing
+    const expectedGameUrl = 'http://192.168.4.64:3000/?room=ABC123'
     const encodedUrl = encodeURIComponent(expectedGameUrl)
 
     expect(mockQRCodeImage.src).toContain(`data=${encodedUrl}`)
@@ -156,7 +157,8 @@ describe('QR Code Generation', () => {
     generateQRCode()
 
     const qrUrl = mockQRCodeImage.src
-    const expectedGameUrl = encodeURIComponent('http://localhost:3000/?room=ABC123')
+    // localhost is replaced with local IP for mobile testing
+    const expectedGameUrl = encodeURIComponent('http://192.168.4.64:3000/?room=ABC123')
 
     expect(qrUrl).toBe(`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${expectedGameUrl}`)
   })
@@ -269,7 +271,8 @@ describe('QR Code Integration with Game Sessions', () => {
     expect(gameState.roomCode).toHaveLength(4)
 
     // QR code should use the gameState room code
-    const expectedUrl = encodeURIComponent(`http://localhost:3000/?room=${gameState.roomCode}`)
+    // localhost is replaced with local IP for mobile testing
+    const expectedUrl = encodeURIComponent(`http://192.168.4.64:3000/?room=${gameState.roomCode}`)
     expect(mockElements.qrCodeImage.src).toContain(expectedUrl)
   })
 })
