@@ -208,7 +208,8 @@ function processGameUpdate(newData) {
 
     // Check if vote results are available - display them for ALL players
     // Vote results are in settings (single writer - host only, no need for atomic)
-    if (newData.settings && newData.settings.voteResults) {
+    // Only show if votes were actually tallied in this session (prevents showing stale results from previous meeting)
+    if (newData.settings && newData.settings.voteResults && gameState.votesTallied) {
       console.log('Vote results received from database, displaying for all players...');
       const { voteCounts, eliminatedPlayer, isTie } = newData.settings.voteResults;
       displayVoteResults(voteCounts, eliminatedPlayer, isTie);
