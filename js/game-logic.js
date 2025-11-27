@@ -1003,7 +1003,9 @@ tasksContainer.appendChild(taskElement);
 
 // Restore scroll after rebuild
 requestAnimationFrame(() => {
+if (typeof window !== 'undefined' && window.scrollTo) {
 window.scrollTo(0, scrollPos);
+}
 });
 }
 

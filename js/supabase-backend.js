@@ -198,7 +198,9 @@ function processGameUpdate(newData) {
 
     // Restore scroll after DOM update
     requestAnimationFrame(() => {
-      window.scrollTo(0, scrollPos);
+      if (typeof window !== 'undefined' && window.scrollTo) {
+        window.scrollTo(0, scrollPos);
+      }
     });
   }
 
@@ -267,7 +269,9 @@ function processGameUpdate(newData) {
 
     // Restore scroll position after all updates
     requestAnimationFrame(() => {
-      window.scrollTo(0, preservedScrollPos);
+      if (typeof window !== 'undefined' && window.scrollTo) {
+        window.scrollTo(0, preservedScrollPos);
+      }
     });
   }
 
