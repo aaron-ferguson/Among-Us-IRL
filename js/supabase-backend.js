@@ -26,6 +26,12 @@ import { ROOMS_AND_TASKS } from './rooms-and-tasks.js';
 // Track last rendered stage to avoid unnecessary DOM rebuilds that can reset scroll position
 let lastRenderedStage = null;
 
+// Scroll preservation state tracking
+let lastReadyCount = null;
+let lastVotesSubmitted = null;
+let lastVoteResults = null;
+let lastDisplayedResults = null;
+
 // ==================== LOGGING SYSTEM ====================
 const LOG_LEVELS = {
   ERROR: 0,
@@ -185,7 +191,15 @@ function processGameUpdate(newData) {
 
   // Update ready status if in discussion
   if (!document.getElementById('discussion-phase').classList.contains('hidden')) {
+    // Preserve scroll position during update
+    const scrollPos = window.scrollY || window.pageYOffset;
+
     updateReadyStatus();
+
+    // Restore scroll after DOM update
+    requestAnimationFrame(() => {
+      window.scrollTo(0, scrollPos);
+    });
   }
 
   // Check if we're in voting or waiting for results
@@ -193,6 +207,9 @@ function processGameUpdate(newData) {
   const votingPhaseVisible = !document.getElementById('voting-phase').classList.contains('hidden');
 
   if (voteResultsVisible || votingPhaseVisible) {
+    // Cache scroll position before any DOM updates
+    const preservedScrollPos = window.scrollY || window.pageYOffset;
+
     // Only count alive players for voting
     const alivePlayers = gameState.players.filter(p => p.alive);
     const totalAlivePlayers = alivePlayers.length;
@@ -209,25 +226,35 @@ function processGameUpdate(newData) {
     // Check if vote results are available - display them for ALL players
     // Vote results are in settings (single writer - host only, no need for atomic)
     // Only show if votes were actually tallied in this session (prevents showing stale results from previous meeting)
+    const currentResults = JSON.stringify(newData.settings?.voteResults);
     if (newData.settings && newData.settings.voteResults && gameState.votesTallied) {
-      console.log('Vote results received from database, displaying for all players...');
-      const { voteCounts, eliminatedPlayer, isTie } = newData.settings.voteResults;
-      displayVoteResults(voteCounts, eliminatedPlayer, isTie);
+      // Only update if results actually changed
+      if (lastDisplayedResults !== currentResults) {
+        lastDisplayedResults = currentResults;
+        console.log('Vote results received from database, displaying for all players...');
+        const { voteCounts, eliminatedPlayer, isTie } = newData.settings.voteResults;
+        displayVoteResults(voteCounts, eliminatedPlayer, isTie);
+      }
     } else {
       // Update vote count display for players on results screen
       if (voteResultsVisible) {
-        const resultsDisplay = document.getElementById('results-display');
-        if (resultsDisplay) {
-          if (votesSubmitted < totalAlivePlayers && !gameState.votesTallied) {
-            resultsDisplay.innerHTML = `
-              <p style="color: #a0a0a0;">Votes submitted: ${votesSubmitted}/${totalAlivePlayers}</p>
-              <p style="color: #5eb3f6;">Waiting for all players to vote...</p>
-            `;
-          } else if (gameState.votesTallied && !newData.settings?.voteResults) {
-            resultsDisplay.innerHTML = `
-              <p style="color: #5eb3f6;">Tallying votes...</p>
-              <p style="color: #a0a0a0;">Syncing results...</p>
-            `;
+        // Only update if vote count changed
+        if (lastVotesSubmitted !== votesSubmitted) {
+          lastVotesSubmitted = votesSubmitted;
+
+          const resultsDisplay = document.getElementById('results-display');
+          if (resultsDisplay) {
+            if (votesSubmitted < totalAlivePlayers && !gameState.votesTallied) {
+              resultsDisplay.innerHTML = `
+                <p style="color: #a0a0a0;">Votes submitted: ${votesSubmitted}/${totalAlivePlayers}</p>
+                <p style="color: #5eb3f6;">Waiting for all players to vote...</p>
+              `;
+            } else if (gameState.votesTallied && !newData.settings?.voteResults) {
+              resultsDisplay.innerHTML = `
+                <p style="color: #5eb3f6;">Tallying votes...</p>
+                <p style="color: #a0a0a0;">Syncing results...</p>
+              `;
+            }
           }
         }
       }
@@ -237,11 +264,22 @@ function processGameUpdate(newData) {
         tallyVotes();
       }
     }
+
+    // Restore scroll position after all updates
+    requestAnimationFrame(() => {
+      window.scrollTo(0, preservedScrollPos);
+    });
   }
 
   // Update UI based on stage
-  console.log('Calling handleStageChange() with stage:', gameState.stage);
-  handleStageChange();
+  // Only trigger stage change if stage actually changed
+  const stageChanged = lastRenderedStage !== gameState.stage;
+  if (stageChanged) {
+    console.log('Stage changed - calling handleStageChange() with stage:', gameState.stage);
+    handleStageChange();
+  } else {
+    console.log('Stage unchanged - skipping handleStageChange() to preserve scroll');
+  }
 
   // Update host controls visibility
   updateHostControls();

@@ -1476,8 +1476,16 @@ const player = gameState.players.find(p => p.name === playerName);
 return player && player.alive && !player.pendingRemoval;
 }).length;
 
-document.getElementById('ready-for-vote-count').textContent = aliveReadyCount;
-document.getElementById('total-players-count').textContent = totalAliveCount;
+// Only update DOM if values actually changed
+const readyCountElement = document.getElementById('ready-for-vote-count');
+const totalCountElement = document.getElementById('total-players-count');
+
+if (readyCountElement && readyCountElement.textContent !== String(aliveReadyCount)) {
+readyCountElement.textContent = aliveReadyCount;
+}
+if (totalCountElement && totalCountElement.textContent !== String(totalAliveCount)) {
+totalCountElement.textContent = totalAliveCount;
+}
 
 // Update ready players list - INCLUDE ALL PLAYERS (alive and eliminated)
 // This ensures eliminated players feel included in the social experience
@@ -1489,9 +1497,10 @@ if (!player) return null;
 return player.alive ? playerName : `${playerName} (observing)`;
 }).filter(name => name !== null);
 
-readyList.textContent = allReadyPlayers.length > 0
-? allReadyPlayers.join(', ')
-: 'None yet';
+const readyListText = allReadyPlayers.length > 0 ? allReadyPlayers.join(', ') : 'None yet';
+if (readyList && readyList.textContent !== readyListText) {
+readyList.textContent = readyListText;
+}
 
 // Show start voting button to host if all ALIVE players are ready
 if (isHost() && aliveReadyCount === totalAliveCount && totalAliveCount > 0) {
