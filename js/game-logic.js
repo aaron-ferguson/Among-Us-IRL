@@ -1531,6 +1531,12 @@ document.getElementById('host-elimination-controls')?.classList.add('hidden');
 document.getElementById('discussion-phase').classList.add('hidden');
 document.getElementById('voting-phase').classList.remove('hidden');
 
+// Display who called the meeting
+const meetingCallerDisplay = document.getElementById('meeting-caller-name');
+if (meetingCallerDisplay && gameState.meetingCaller) {
+meetingCallerDisplay.textContent = gameState.meetingCaller;
+}
+
 // Check if this player is eliminated
 const currentPlayer = gameState.players.find(p => p.name === myPlayerName);
 const isEliminated = currentPlayer && !currentPlayer.alive;
