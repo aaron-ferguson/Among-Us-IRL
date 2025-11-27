@@ -4607,9 +4607,17 @@ describe('Multiple Meetings in Same Session', () => {
       getElementById: vi.fn((id) => mockElements[id] || {
         classList: { add: vi.fn(), remove: vi.fn(), contains: vi.fn(() => false) },
         textContent: '',
-        disabled: false
+        disabled: false,
+        appendChild: vi.fn(),
+        style: {}
       }),
-      querySelector: vi.fn(() => ({ textContent: '' }))
+      querySelector: vi.fn(() => ({ textContent: '', style: {} })),
+      createElement: vi.fn(() => ({
+        style: { cssText: '' },
+        innerHTML: '',
+        classList: { add: vi.fn(), remove: vi.fn() },
+        appendChild: vi.fn()
+      }))
     }
 
     setMyPlayerName('Alice')
