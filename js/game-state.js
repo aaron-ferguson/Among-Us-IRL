@@ -64,7 +64,6 @@ let playerExistenceInterval = null; // Interval for checking player existence
 function isHost() {
 // You're the host if you created the game OR if you're the named host
 const result = isGameCreator || (gameState.hostName && myPlayerName === gameState.hostName);
-console.log('isHost check - isGameCreator:', isGameCreator, '| hostName:', gameState.hostName, '| myPlayerName:', myPlayerName, '| result:', result);
 return result;
 }
 

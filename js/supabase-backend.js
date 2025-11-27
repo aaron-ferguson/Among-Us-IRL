@@ -1,5 +1,8 @@
 // ==================== SUPABASE HELPER FUNCTIONS ====================
 
+// MODULE VERSION CHECK - If you don't see this, browser is using cached version
+console.log('🔄 supabase-backend.js loaded - VERSION 2024-11-26-18:00 - CLEANED UP JSONB');
+
 // Import from game-state module
 import {
   gameState,
@@ -30,7 +33,7 @@ const LOG_LEVELS = {
   DEBUG: 2
 };
 
-let currentLogLevel = LOG_LEVELS.INFO;
+let currentLogLevel = LOG_LEVELS.DEBUG;
 
 function setLogLevel(level) {
   if (typeof level === 'string') {
@@ -117,6 +120,13 @@ const subscriptionManager = new SubscriptionManager();
 
 function processGameUpdate(newData) {
   console.log('Processing game update - sequence:', newData.sequence_number);
+  console.log('=== DATABASE COLUMN DEBUG ===');
+  console.log('newData.meeting_ready:', newData.meeting_ready);
+  console.log('newData.votes:', newData.votes);
+  console.log('newData.vote_results:', newData.vote_results);
+  console.log('newData.settings.meetingReady:', newData.settings?.meetingReady);
+  console.log('newData.settings.votes:', newData.settings?.votes);
+  console.log('============================');
 
   // Update local state from DB
   // Only update hostName if it's not null (prevent overwriting valid host with null)
@@ -136,7 +146,6 @@ function processGameUpdate(newData) {
     }
 
     // Check for new game invitation (for non-host players only)
-    console.log('Checking for invitation - isHost:', isHost(), 'invitation:', newData.settings.newGameInvitation, 'myPlayerName:', myPlayerName);
     if (!isHost() && newData.settings.newGameInvitation && myPlayerName) {
       console.log('=== NEW GAME INVITATION DETECTED ===');
       console.log('Invitation type:', newData.settings.newGameInvitation);
@@ -153,13 +162,15 @@ function processGameUpdate(newData) {
   gameState.gameEnded = newData.game_ended;
   gameState.winner = newData.winner;
 
-  // Sync meeting-related state
+  // Sync meeting-related state from dedicated columns (not settings JSONB)
+  gameState.meetingReady = newData.meeting_ready || {};
+  const incomingVotes = newData.votes || {};
+  console.log('Syncing votes from database:', incomingVotes);
+  console.log('Vote count from database:', Object.keys(incomingVotes).length);
+  gameState.votes = incomingVotes;
+
+  // These still come from settings
   if (newData.settings) {
-    gameState.meetingReady = newData.settings.meetingReady || {};
-    const incomingVotes = newData.settings.votes || {};
-    console.log('Syncing votes from database:', incomingVotes);
-    console.log('Vote count from database:', Object.keys(incomingVotes).length);
-    gameState.votes = incomingVotes;
     gameState.votingStarted = newData.settings.votingStarted || false;
     gameState.meetingCaller = newData.settings.meetingCaller;
   }
@@ -188,6 +199,7 @@ function processGameUpdate(newData) {
     const votesSubmitted = Object.keys(gameState.votes).length;
 
     // Check if vote results are available - display them for ALL players
+    // Vote results are in settings (single writer - host only, no need for atomic)
     if (newData.settings && newData.settings.voteResults) {
       console.log('Vote results received from database, displaying for all players...');
       const { voteCounts, eliminatedPlayer, isTie } = newData.settings.voteResults;
@@ -213,7 +225,6 @@ function processGameUpdate(newData) {
 
       // Host tallies votes when all ALIVE players have voted
       if (isHost() && votesSubmitted === totalAlivePlayers && !gameState.votesTallied) {
-        console.log('All votes received, tallying... (host on', voteResultsVisible ? 'results' : 'voting', 'screen)');
         tallyVotes();
       }
     }
@@ -394,18 +405,20 @@ const { data: currentGame, error: fetchError } = await supabaseClient
 
 if (fetchError) throw fetchError;
 
-// Merge local meetingReady with existing database state to prevent overwrites
-const existingMeetingReady = currentGame?.settings?.meetingReady || {};
-const mergedMeetingReady = { ...existingMeetingReady, ...gameState.meetingReady };
-
-// Ensure meeting state is in settings for DB sync
-gameState.settings.meetingReady = mergedMeetingReady;
-gameState.settings.votes = gameState.votes;
+// Update settings fields that are NOT in dedicated columns
+// (votingStarted, meetingCaller, meetingType are still in settings - single writer, no concurrency)
 gameState.settings.votingStarted = gameState.votingStarted;
 gameState.settings.meetingCaller = gameState.meetingCaller;
 gameState.settings.meetingType = gameState.meetingType;
 
+// Remove old JSONB fields that now have dedicated columns (prevent accidental writes)
+delete gameState.settings.meetingReady;
+delete gameState.settings.votes;
+// Note: voteResults stays in settings (single writer - host only, no concurrency issues)
+
 console.log('Updating database with stage:', gameState.stage);
+// NOTE: meeting_ready, votes, vote_results are ONLY written by atomic operations
+// Do NOT write them here or they will overwrite atomic updates
 const { error } = await supabaseClient
 .from('games')
 .update({
@@ -554,8 +567,9 @@ filter: `id=eq.${currentGameId}`
 console.log('=== MEETING READY SUBSCRIPTION CALLBACK ===');
 
 // Only process if meetingReady changed
-const newMeetingReady = payload.new?.settings?.meetingReady;
-const oldMeetingReady = payload.old?.settings?.meetingReady;
+// Read from dedicated meeting_ready column (not settings JSONB)
+const newMeetingReady = payload.new?.meeting_ready;
+const oldMeetingReady = payload.old?.meeting_ready;
 
 if (JSON.stringify(newMeetingReady) !== JSON.stringify(oldMeetingReady)) {
 console.log('Meeting ready status changed:', newMeetingReady);
@@ -756,7 +770,6 @@ async function handleStageChange() {
 console.log('=== handleStageChange called ===');
 console.log('Current stage:', gameState.stage);
 console.log('myPlayerName:', myPlayerName);
-console.log('isHost():', isHost());
 console.log('currentGameId:', currentGameId);
 
 // Avoid rerendering the same stage repeatedly; it forces the page to jump to the top on mobile
@@ -989,10 +1002,17 @@ async function acknowledgeMeetingAtomic(playerName) {
   }
 
   try {
+    console.log('=== ATOMIC ACKNOWLEDGE DEBUG ===');
+    console.log('Calling acknowledge_meeting RPC for:', playerName);
+
     const { data, error } = await supabaseClient.rpc('acknowledge_meeting', {
       game_uuid: currentGameId,
       player_name: playerName
     });
+
+    console.log('RPC Response - data:', data);
+    console.log('RPC Response - error:', error);
+    console.log('================================');
 
     if (error) throw error;
 

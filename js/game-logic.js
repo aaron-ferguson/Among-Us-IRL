@@ -1,3 +1,6 @@
+// MODULE VERSION CHECK - If you don't see this, browser is using cached version
+console.log('🔄 game-logic.js loaded - VERSION 2024-11-26-18:00 - FIXED RACE CONDITION');
+
 // Import dependencies
 import {
   gameState,
@@ -21,6 +24,8 @@ import {
   removePlayerFromDB,
   clearMeetingStateAtomic,
   batchUpdatePlayersAtomic,
+  submitVoteAtomic,
+  acknowledgeMeetingAtomic,
   subscribeToGame,
   subscribeToPlayers,
   cleanupMeetingSubscription,
@@ -105,7 +110,7 @@ setPlayerExistenceInterval(null);
 
 // Clear voting timer if it's still running
 if (votingTimerInterval !== null) {
-console.log('⏱️  Clearing voting timer (returning to menu)');
+console.log('Clear voting timer (returning to menu)');
 clearInterval(votingTimerInterval);
 votingTimerInterval = null;
 }
@@ -448,13 +453,11 @@ emergencyMeetingsUsed: 0
 
 // Track this device's player
 setMyPlayerName(name);
-console.log('Player joined:', name, '| isGameCreator:', isGameCreator, '| currentGameId:', currentGameId, '| current hostName:', gameState.hostName);
 
 // If this device created the game and there's no host yet, set this player as host
 // Defensive check: only set as host if hostName is null or undefined
 if (isGameCreator && (gameState.hostName === null || gameState.hostName === undefined)) {
 gameState.hostName = name;
-console.log('Setting host:', name);
 
 // Update host in database
 if (supabaseClient && currentGameId) {
@@ -465,14 +468,10 @@ const { error } = await supabaseClient
 
 if (error) {
 console.error('Failed to set host in database:', error);
-} else {
-console.log('Host successfully set in database');
 }
 } else {
 console.warn('Cannot set host in database - supabaseClient or currentGameId missing');
 }
-} else {
-console.log('Not setting as host - isGameCreator:', isGameCreator, 'gameState.hostName:', gameState.hostName);
 }
 
 nameInput.value = '';
@@ -509,6 +508,7 @@ console.log('gameState.players count:', gameState.players.length);
 console.log('Players:', gameState.players.map(p => p.name).join(', '));
 
 // Safety check - only skip if we're not in waiting stage (prevents errors during menu transition)
+// Other stages are: setup, waiting, playing, meeting, and ended
 if (gameState.stage !== 'waiting') {
 console.log('updateLobby called but not in waiting stage, ignoring');
 return;
@@ -602,8 +602,6 @@ return;
 }
 
 if (confirm(`Are you sure you want to kick ${playerName}?`)) {
-console.log('Host kicking player:', playerName);
-
 // Remove from local state
 const playerIndex = gameState.players.findIndex(p => p.name === playerName);
 if (playerIndex !== -1) {
@@ -712,9 +710,8 @@ await updatePlayerInDB(playerName, { ready: true });
 
 function startGame() {
 console.log('=== START GAME CALLED ===');
-console.log('isHost():', isHost());
-console.log('currentGameId:', currentGameId);
-console.log('supabaseClient:', !!supabaseClient);
+console.log('===currentGameId:===', currentGameId);
+console.log('===supabaseClient:===', !!supabaseClient);
 
 // Only host can start the game
 if (!isHost()) {
@@ -877,14 +874,14 @@ gameState.currentPlayer = gameState.players[0]?.name || null;
 
 // Switch to game phase
 gameState.stage = 'playing';
-console.log('Stage set to playing, updating UI...');
+console.log('Set stage to playing');
 document.getElementById('waiting-room').classList.add('hidden');
 document.getElementById('game-phase').classList.remove('hidden');
 
 displayGameplay();
 
 // Update game state in database
-console.log('Calling updateGameInDB() to sync stage to database...');
+console.log('Calling updateGameInDB() to sync stage to database');
 updateGameInDB();
 
 // Update all players with their roles/tasks in database atomically
@@ -907,7 +904,10 @@ console.error('Failed to batch update players:', result.error);
 
 function displayGameplay() {
 const player = gameState.players.find(p => p.name === gameState.currentPlayer);
-if (!player) return;
+if (!player || !player.role) {
+console.warn('displayGameplay called but player or role is null:', player);
+return;
+}
 
 // Display actual role but with same color styling for both (prevents visual giveaways)
 const roleText = player.role.charAt(0).toUpperCase() + player.role.slice(1);
@@ -1289,47 +1289,31 @@ updateGameInDB();
 }
 }
 
-// DATABASE FIRST: Update ready status in database
+// DATABASE FIRST: Update ready status in database using atomic operation
 if (myPlayerName) {
 if (supabaseClient && currentGameId) {
-// Update database first - this will trigger subscription for all players
+// Use atomic operation with database row locking to prevent race conditions
 (async () => {
 try {
-// Fetch current meetingReady from database
-const { data: currentGame } = await supabaseClient
-.from('games')
-.select('settings')
-.eq('id', currentGameId)
-.single();
+const result = await acknowledgeMeetingAtomic(myPlayerName);
 
-// Merge with existing ready status
-const existingReady = currentGame?.settings?.meetingReady || {};
-const updatedReady = {
-...existingReady,
-[myPlayerName]: true
-};
-
-// Update database - this will trigger subscription for all players
-await supabaseClient
-.from('games')
-.update({
-settings: {
-...currentGame.settings,
-meetingReady: updatedReady
-}
-})
-.eq('id', currentGameId);
-
-console.log('Ready status updated in database for', myPlayerName);
-
-// Update local state from what we just wrote to DB (source of truth)
-gameState.meetingReady = updatedReady;
-
-// Update ready count display
+if (result.success) {
+// Update local state from atomic result
+gameState.meetingReady = result.meetingReady;
 updateReadyStatus();
+console.log('✓ Meeting acknowledged atomically:', myPlayerName);
+} else {
+console.error('Failed to acknowledge meeting:', result.error);
+// Fallback to local update
+if (!gameState.meetingReady) {
+gameState.meetingReady = {};
+}
+gameState.meetingReady[myPlayerName] = true;
+updateReadyStatus();
+}
 } catch (error) {
-console.error('Failed to update ready status:', error);
-// Fallback to local update if database fails
+console.error('Error in acknowledgeMeeting:', error);
+// Fallback to local update
 if (!gameState.meetingReady) {
 gameState.meetingReady = {};
 }
@@ -1617,13 +1601,11 @@ document.getElementById('vote-timer').textContent = timeLeft;
 if (timeLeft <= 0) {
 clearInterval(votingTimerInterval);
 votingTimerInterval = null;
-console.log('=== VOTING TIMER EXPIRED ===');
-console.log('Current selectedVote:', selectedVote);
-console.log('myPlayerName:', myPlayerName);
+console.log('Voting timer expired for ', myPlayerName);
 
 // Guard: Don't auto-submit if voting has already been tallied
 if (gameState.votesTallied) {
-console.log('❌ Votes already tallied, ignoring timer expiry');
+console.log('Votes already tallied, ignoring timer expiry');
 return;
 }
 
@@ -1673,13 +1655,10 @@ submitBtn.disabled = false;
 
 async function submitVote() {
 console.log('=== SUBMIT VOTE CALLED ===');
-console.log('myPlayerName:', myPlayerName);
-console.log('selectedVote:', selectedVote);
-console.log('Current gameState.votes:', gameState.votes);
 
 // Guard: Don't submit if voting has already been tallied
 if (gameState.votesTallied) {
-console.log('❌ Voting has already ended, ignoring late vote submission');
+console.log('Voting has already ended, ignoring late vote submission');
 return;
 }
 
@@ -1691,70 +1670,28 @@ console.log('Recording vote:', selectedVote || 'skip', 'for player:', myPlayerNa
 
 if (supabaseClient && currentGameId) {
 const voteValue = selectedVote || 'skip';
-let retries = 0;
-const maxRetries = 5;
 
-while (retries < maxRetries) {
 try {
-console.log(`Attempt ${retries + 1}/${maxRetries}: Submitting vote to database...`);
+console.log('Submitting vote atomically:', myPlayerName, '→', voteValue);
 
-// Fetch current settings
-const { data: currentGame, error: fetchError } = await supabaseClient
-.from('games')
-.select('settings')
-.eq('id', currentGameId)
-.single();
+// Use atomic operation with database row locking to prevent race conditions
+const result = await submitVoteAtomic(myPlayerName, voteValue);
 
-if (fetchError) throw fetchError;
-
-// Check if our vote is already recorded
-const existingVotes = currentGame.settings.votes || {};
-if (existingVotes[myPlayerName] === voteValue) {
-console.log('✓ Vote already recorded in database');
-break;
-}
-
-// Merge our vote into settings
-const updatedSettings = {
-...currentGame.settings,
-votes: {
-...existingVotes,
-[myPlayerName]: voteValue
-}
-};
-
-// Update database
-const { error: updateError } = await supabaseClient
-.from('games')
-.update({ settings: updatedSettings })
-.eq('id', currentGameId);
-
-if (updateError) throw updateError;
-
-// Verify vote was recorded
-await new Promise(resolve => setTimeout(resolve, 100)); // Wait 100ms for sync
-const { data: verifyGame } = await supabaseClient
-.from('games')
-.select('settings')
-.eq('id', currentGameId)
-.single();
-
-if (verifyGame?.settings?.votes?.[myPlayerName] === voteValue) {
-console.log('✓ Vote verified in database');
-break;
+if (result.success) {
+console.log('✓ Vote submitted successfully');
+// Update local state from atomic result
+gameState.votes = result.votes;
 } else {
-console.warn(`Vote not verified, retrying... (attempt ${retries + 1})`);
-retries++;
+console.error('Failed to submit vote:', result.error);
+// Fallback to local update
+if (!gameState.votes) gameState.votes = {};
+gameState.votes[myPlayerName] = voteValue;
 }
-} catch (err) {
-console.error(`✗ Error on attempt ${retries + 1}:`, err);
-retries++;
-await new Promise(resolve => setTimeout(resolve, 200)); // Wait before retry
-}
-}
-
-if (retries >= maxRetries) {
-console.error('✗ Failed to record vote after max retries');
+} catch (error) {
+console.error('Error submitting vote:', error);
+// Fallback to local update
+if (!gameState.votes) gameState.votes = {};
+gameState.votes[myPlayerName] = voteValue;
 }
 } else {
 // Offline mode - just update local state
@@ -1787,7 +1724,7 @@ console.log('votesTallied flag:', gameState.votesTallied);
 
 // Prevent double tallying
 if (gameState.votesTallied) {
-console.log('❌ Already tallied, returning early');
+console.log('Already tallied, returning early');
 return;
 }
 
@@ -1811,15 +1748,15 @@ const activeVoters = expectedVoters.filter(name => {
 const missingVotes = activeVoters.filter(name => !gameState.votes[name]);
 
 if (missingVotes.length > 0) {
-  console.warn(`❌ Cannot tally: Waiting for votes from:`, missingVotes);
+  console.warn(`Cannot tally: Waiting for votes from:`, missingVotes);
   return; // Don't tally until all active voters have voted
 }
 
-console.log('✅ All active voters have voted, proceeding with tally...');
+console.log('All active voters have voted, tally starting');
 
 // Clear voting timer if it's still running (everyone voted before time expired)
 if (votingTimerInterval !== null) {
-console.log('⏱️  Clearing voting timer (votes completed early)');
+console.log('Clearing voting timer (votes completed early)');
 clearInterval(votingTimerInterval);
 votingTimerInterval = null;
 }
@@ -1964,29 +1901,19 @@ const waitingMsg = document.getElementById('waiting-for-host-resume');
 const currentPlayer = gameState.players.find(p => p.name === myPlayerName);
 const hostIsEliminated = isHost() && currentPlayer && !currentPlayer.alive;
 
-console.log('=== Resume Button Setup (displayVoteResults) ===');
-console.log('isHost():', isHost());
-console.log('Host is eliminated:', hostIsEliminated);
-console.log('myPlayerName:', myPlayerName);
-console.log('gameState.hostName:', gameState.hostName);
-
 // Always show resume button, configure based on host status
 resumeBtn.classList.remove('hidden');
 waitingMsg.classList.add('hidden');
 
 if (isHost()) {
-console.log('→ HOST: Setting enabled resume button (meta-game role - works even if host is eliminated)');
 resumeBtn.disabled = false;
 resumeBtn.textContent = 'Resume Game';
 resumeBtn.className = 'btn-success btn-block';
 } else {
-console.log('→ NON-HOST: Setting disabled button');
 resumeBtn.disabled = true;
 resumeBtn.textContent = 'Only Host Can Resume Game';
 resumeBtn.className = 'btn-secondary btn-block';
 }
-console.log('Button state - disabled:', resumeBtn.disabled, 'text:', resumeBtn.textContent);
-console.log('================================================');
 }
 
 function checkWinConditions() {
@@ -2032,13 +1959,19 @@ return null;
 }
 
 async function resumeGame() {
+console.log('=== resumeGame() CALLED ===');
+console.log('votingStarted:', gameState.votingStarted);
+console.log('votesTallied:', gameState.votesTallied);
+
 // Only host can resume the game (button is disabled for non-hosts)
 if (!isHost()) {
+console.log('Resume blocked: Not host');
 return;
 }
 
 // Don't allow resume if voting hasn't been completed
 if (gameState.votingStarted && !gameState.votesTallied) {
+console.log('Resume blocked: Voting not tallied yet');
 return;
 }
 
@@ -2060,6 +1993,9 @@ gameState.votesTallied = false;
 gameState.meetingType = null;
 gameState.meetingCaller = null;
 gameState.settings.voteResults = null; // Clear vote results
+gameState.settings.votingStarted = false;
+gameState.settings.meetingCaller = null;
+gameState.settings.meetingType = null;
 selectedVote = null;
 
 // Clear voting player snapshot when returning to game
@@ -2073,14 +2009,17 @@ if (playersToRemove.length > 0) {
   gameState.players = gameState.players.filter(p => !p.pendingRemoval);
 }
 
-// Clear meeting state atomically in database first
+// Update database with stage change FIRST to prevent race condition
 if (supabaseClient && currentGameId) {
+console.log('Updating stage to playing in database...');
+await updateGameInDB();
+console.log('Game state updated - stage:', gameState.stage);
+
+// THEN clear meeting state atomically (this also triggers subscription, but stage is already correct)
 const result = await clearMeetingStateAtomic();
 if (!result.success) {
 console.error('Failed to clear meeting state:', result.error);
 }
-// Then update other game state
-updateGameInDB();
 }
 
 // Show current view
@@ -2096,7 +2035,7 @@ console.log('Game ending - Winner:', winner, 'Message:', message);
 
 // Clear voting timer if it's still running (game ended during voting)
 if (votingTimerInterval !== null) {
-console.log('⏱️  Clearing voting timer (game ended during voting)');
+console.log('Clearing voting timer (game ended during voting)');
 clearInterval(votingTimerInterval);
 votingTimerInterval = null;
 }
@@ -2321,7 +2260,6 @@ console.log('New game session created with ID:', currentGameId);
 // Add host to players table in new game database
 if (myPlayerName) {
 await addPlayerToDB(myPlayerName, true);
-console.log('Host added to new game players table');
 }
 
 // Send invitation to players from PREVIOUS game with new room code
@@ -2393,8 +2331,6 @@ updateLobby();
 
 async function newGameNewSettings() {
 if (!isHost()) return;
-
-console.log('Host starting new game with new settings - going to setup');
 
 // Save reference to old game ID for sending invitations later (after creating new game)
 gameState.previousGameIdForInvites = currentGameId;
