@@ -1086,11 +1086,26 @@ document.getElementById('eliminated-modal').classList.remove('hidden');
 }
 
 function showMeetingTypeSelection() {
+// Disable button to prevent double-clicks during transition
+const btn = document.getElementById('call-meeting-btn');
+if (btn) {
+btn.disabled = true;
+btn.style.opacity = '0.6';
+}
+
 // Hide the call meeting button
 document.getElementById('call-meeting-btn').parentElement.classList.add('hidden');
 
 // Show the meeting type selection
 document.getElementById('meeting-type-selection').classList.remove('hidden');
+
+// Re-enable button after animation completes
+setTimeout(() => {
+if (btn) {
+btn.disabled = false;
+btn.style.opacity = '1';
+}
+}, 350);
 
 // Get current player's emergency meetings used
 const currentPlayer = gameState.players.find(p => p.name === myPlayerName);
@@ -1186,8 +1201,10 @@ playAlarmSound();
 }
 
 function callMeeting() {
-// Show meeting type selection instead of immediate meeting
+// Defer DOM mutation to next microtask to ensure click completes on mobile
+setTimeout(() => {
 showMeetingTypeSelection();
+}, 0);
 }
 
 function playAlarmSound() {
