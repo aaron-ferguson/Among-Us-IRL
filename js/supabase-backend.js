@@ -126,13 +126,13 @@ const subscriptionManager = new SubscriptionManager();
 
 function processGameUpdate(newData) {
   console.log('Processing game update - sequence:', newData.sequence_number);
-  console.log('=== DATABASE COLUMN DEBUG ===');
-  console.log('newData.meeting_ready:', newData.meeting_ready);
-  console.log('newData.votes:', newData.votes);
-  console.log('newData.vote_results:', newData.vote_results);
-  console.log('newData.settings.meetingReady:', newData.settings?.meetingReady);
-  console.log('newData.settings.votes:', newData.settings?.votes);
-  console.log('============================');
+  console.error('=== DATABASE COLUMN DEBUG ===');
+  console.error('newData.meeting_ready:', newData.meeting_ready);
+  console.error('newData.votes:', newData.votes);
+  console.error('newData.vote_results:', newData.vote_results);
+  console.error('newData.settings.meetingReady:', newData.settings?.meetingReady);
+  console.error('newData.settings.votes:', newData.settings?.votes);
+  console.error('============================');
 
   // Update local state from DB
   // Only update hostName if it's not null (prevent overwriting valid host with null)
@@ -161,6 +161,7 @@ function processGameUpdate(newData) {
       document.getElementById('waiting-room').classList.add('hidden');
       document.getElementById('new-game-invitation').classList.remove('hidden');
       console.log('Invitation modal shown, game end and waiting room hidden');
+      console.log('===================');
     }
   }
 
@@ -217,13 +218,13 @@ function processGameUpdate(newData) {
     const totalAlivePlayers = alivePlayers.length;
     const votesSubmitted = Object.keys(gameState.votes).length;
 
-    console.log('=== VOTE COUNT CHECK ===');
-    console.log('Total players in gameState:', gameState.players.length);
-    console.log('All players:', gameState.players.map(p => `${p.name}(alive:${p.alive})`));
-    console.log('Alive players count:', totalAlivePlayers);
-    console.log('Alive players:', alivePlayers.map(p => p.name));
-    console.log('Votes submitted:', votesSubmitted);
-    console.log('========================');
+    console.info('=== VOTE COUNT CHECK ===');
+    console.info('Total players in gameState:', gameState.players.length);
+    console.info('All players:', gameState.players.map(p => `${p.name}(alive:${p.alive})`));
+    console.info('Alive players count:', totalAlivePlayers);
+    console.info('Alive players:', alivePlayers.map(p => p.name));
+    console.info('Votes submitted:', votesSubmitted);
+    console.info('========================');
 
     // Check if vote results are available - display them for ALL players
     // Vote results are in settings (single writer - host only, no need for atomic)
@@ -233,7 +234,7 @@ function processGameUpdate(newData) {
       // Only update if results actually changed
       if (lastDisplayedResults !== currentResults) {
         lastDisplayedResults = currentResults;
-        console.log('Vote results received from database, displaying for all players...');
+        console.log('Vote results received and displayed');
         const { voteCounts, eliminatedPlayer, isTie } = newData.settings.voteResults;
         displayVoteResults(voteCounts, eliminatedPlayer, isTie);
       }
@@ -436,10 +437,11 @@ return null;
 }
 
 async function updateGameInDB() {
-console.log('=== updateGameInDB() CALLED ===');
-console.log('supabaseClient:', !!supabaseClient);
-console.log('currentGameId:', currentGameId);
-console.log('gameState.stage:', gameState.stage);
+console.info('=== updateGameInDB() CALLED ===');
+console.info('supabaseClient:', !!supabaseClient);
+console.info('currentGameId:', currentGameId);
+console.info('gameState.stage:', gameState.stage);
+console.info('================');
 
 if (!supabaseClient || !currentGameId) {
 console.warn('Cannot update game in DB - missing supabaseClient or currentGameId');
@@ -559,9 +561,10 @@ console.log('Subscribed to game updates');
 }
 
 function subscribeToPlayers() {
-console.log('=== SUBSCRIBING TO PLAYERS ===');
-console.log('supabaseClient:', !!supabaseClient);
-console.log('currentGameId:', currentGameId);
+console.info('=== SUBSCRIBING TO PLAYERS ===');
+console.info('supabaseClient:', !!supabaseClient);
+console.info('currentGameId:', currentGameId);
+console.info('================');
 
 if (!supabaseClient || !currentGameId) {
 console.warn('Cannot subscribe to players - missing supabaseClient or currentGameId');
@@ -578,8 +581,9 @@ table: 'players',
 filter: `game_id=eq.${currentGameId}`
 },
 (payload) => {
-console.log('=== PLAYERS SUBSCRIPTION CALLBACK ===');
-console.log('Players changed:', payload);
+console.info('=== PLAYERS SUBSCRIPTION CALLBACK ===');
+console.info('Players changed:', payload);
+console.info('====================');
 handlePlayerChange(payload);
 }
 )
@@ -615,7 +619,7 @@ table: 'games',
 filter: `id=eq.${currentGameId}`
 },
 (payload) => {
-console.log('=== MEETING READY SUBSCRIPTION CALLBACK ===');
+console.log('MEETING READY SUBSCRIPTION CALLBACK');
 
 // Only process if meetingReady changed
 // Read from dedicated meeting_ready column (not settings JSONB)
@@ -649,6 +653,7 @@ window.checkAllPlayersReady();
 subscriptionManager.subscribe('meetingReady', meetingReadyChannel);
 gameState.meetingReadySubscription = meetingReadyChannel;
 console.log('✓ Subscribed to meeting ready status for game:', currentGameId);
+console.info('=============');
 return meetingReadyChannel;
 }
 
@@ -843,6 +848,9 @@ return;
 
 lastRenderedStage = gameState.stage;
 
+// Preserve scroll position during stage transitions
+const preservedScrollY = (typeof window !== 'undefined' && window.scrollY) ? window.scrollY : 0;
+
 // Show/hide appropriate UI sections based on stage
 if (gameState.stage === 'waiting') {
 console.log('Stage is WAITING');
@@ -984,6 +992,13 @@ document.getElementById('host-game-controls').classList.add('hidden');
 document.getElementById('non-host-game-controls').classList.remove('hidden');
 }
 }
+
+// Restore scroll position after all DOM updates
+requestAnimationFrame(() => {
+if (typeof window !== 'undefined' && window.scrollTo) {
+window.scrollTo(0, preservedScrollY);
+}
+});
 }
 
 function unsubscribeFromChannels() {

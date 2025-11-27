@@ -1153,6 +1153,15 @@ btnParent.classList.add('hidden');
 const meetingTypeSelection = document.getElementById('meeting-type-selection');
 if (meetingTypeSelection) {
 meetingTypeSelection.classList.remove('hidden');
+
+// Scroll card into view after showing it
+// Use requestAnimationFrame to ensure the card is rendered before scrolling
+requestAnimationFrame(() => {
+meetingTypeSelection.scrollIntoView({
+behavior: 'smooth',
+block: 'nearest'
+});
+});
 }
 
 // Re-enable button after animation completes
